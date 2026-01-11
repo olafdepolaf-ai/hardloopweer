@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hardloopweer - Is it a good day to run?</title>
+    <meta name="description" content="Quickly check if it's running weather in Amsterdam or your current location. Get clothing recommendations based on temperature, wind, and dew point.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <div class="search-container">
+                <input type="text" id="city-search" placeholder="Search city..." autocomplete="off">
+                <button id="location-btn" title="Use current location">
+                    <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.06 3.52 6.37 3.06 10.54H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <section id="weather-hero" class="card">
+                <div class="location-info">
+                    <h1 id="city-name">Amsterdam</h1>
+                    <p id="current-time">Loading...</p>
+                </div>
+                
+                <div class="weather-main">
+                    <div id="weather-icon-container">
+                        <!-- Icon will be injected here -->
+                    </div>
+                    <div class="temp-container">
+                        <span id="current-temp">--°</span>
+                        <span id="weather-description">--</span>
+                    </div>
+                </div>
+
+                <div class="weather-details">
+                    <div class="detail-item">
+                        <span class="label">Feels like</span>
+                        <span id="feels-like" class="value">--°</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Wind</span>
+                        <span id="wind-speed" class="value">-- km/h</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Dew point</span>
+                        <span id="dew-point" class="value">--°</span>
+                    </div>
+                </div>
+            </section>
+
+            <section id="running-recommendation" class="card highlight">
+                <h2>Is it hardloopweer?</h2>
+                <div id="recommendation-badge" class="badge">--</div>
+                <div id="clothing-tip" class="tip-content">
+                    <p>Fetching weather to give you recommendations...</p>
+                </div>
+                <div id="weather-warnings" class="warnings hidden">
+                    <!-- Warnings here -->
+                </div>
+            </section>
+
+            <section id="forecast-mini" class="card">
+                <h3>Vandaag</h3>
+                <div id="hourly-forecast" class="scroll-x">
+                    <!-- Hourly items here -->
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>Data by Open-Meteo • Designed for Runners</p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
