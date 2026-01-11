@@ -15,45 +15,57 @@ const els = {
     currentTemp: document.getElementById('current-temp'),
     weatherDesc: document.getElementById('weather-description'),
     feelsLike: document.getElementById('feels-like'),
-    windSpeed: document.getElementById('wind-speed'),
+    windForce: document.getElementById('wind-force'),
+    windArrow: document.getElementById('wind-arrow'),
     dewPoint: document.getElementById('dew-point'),
     recommendationBadge: document.getElementById('recommendation-badge'),
     clothingTip: document.getElementById('clothing-tip'),
     warnings: document.getElementById('weather-warnings'),
     hourlyForecast: document.getElementById('hourly-forecast'),
-    app: document.getElementById('app')
+    app: document.getElementById('app'),
+    webcamImg: document.getElementById('webcam-img'),
+    webcamLocation: document.getElementById('webcam-location'),
+    prevWebcam: document.getElementById('prev-webcam'),
+    nextWebcam: document.getElementById('next-webcam'),
+    iconContainer: document.getElementById('weather-icon-container'),
+    comfortContainer: document.getElementById('comfort-container'),
+    comfortLevel: document.getElementById('comfort-level')
 };
 
 // State
 let state = {
     lat: CONFIG.DEFAULT_LAT,
     lon: CONFIG.DEFAULT_LON,
-    city: CONFIG.DEFAULT_CITY
+    city: CONFIG.DEFAULT_CITY,
+    webcams: [],
+    webcamIdx: 0,
+    chart: null
 };
 
 // Init
 async function init() {
     updateTime();
-    setInterval(updateTime, 60000);
-    
-    // Try to get user location
+    setInterval(updateTime, 10000);
+
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 state.lat = pos.coords.latitude;
                 state.lon = pos.coords.longitude;
                 fetchWeather();
+                fetchWebcams();
                 reverseGeocode(state.lat, state.lon);
             },
             () => {
-                fetchWeather(); // Fallback to Amsterdam
+                fetchWeather();
+                fetchWebcams();
             }
         );
     } else {
         fetchWeather();
+        fetchWebcams();
     }
 
-    // Event Listeners
     els.citySearch.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') searchCity(els.citySearch.value);
     });
@@ -63,20 +75,26 @@ async function init() {
             state.lat = pos.coords.latitude;
             state.lon = pos.coords.longitude;
             fetchWeather();
+            fetchWebcams();
             reverseGeocode(state.lat, state.lon);
         });
     });
+
+    els.prevWebcam.addEventListener('click', () => cycleWebcam(-1));
+    els.nextWebcam.addEventListener('click', () => cycleWebcam(1));
+
+    if (window.lucide) lucide.createIcons();
 }
 
 function updateTime() {
     const now = new Date();
-    els.currentTime.innerText = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' • ' + now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+    els.currentTime.innerText = now.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) + ' • ' + now.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 async function searchCity(query) {
     if (!query) return;
     try {
-        const res = await fetch(`${CONFIG.GEO_API_URL}?name=${encodeURIComponent(query)}&count=1&language=en&format=json`);
+        const res = await fetch(`${CONFIG.GEO_API_URL}?name=${encodeURIComponent(query)}&count=1&language=nl&format=json`);
         const data = await res.json();
         if (data.results && data.results.length > 0) {
             const loc = data.results[0];
@@ -85,26 +103,32 @@ async function searchCity(query) {
             state.city = loc.name;
             els.cityName.innerText = state.city;
             fetchWeather();
+            fetchWebcams();
         }
     } catch (err) {
-        console.error("Search failed:", err);
+        console.error("Zoektocht mislukt:", err);
     }
 }
 
 async function reverseGeocode(lat, lon) {
-    // Open-Meteo doesn't have a direct reverse geocode API, 
-    // but we can use bigdatacloud or similar for free or just say "Current Location"
-    els.cityName.innerText = "Lokaal";
+    try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+        const data = await res.json();
+        state.city = data.address.city || data.address.town || data.address.village || "Jouw plekje";
+        els.cityName.innerText = state.city;
+    } catch (err) {
+        els.cityName.innerText = "Ergens op de wereld";
+    }
 }
 
 async function fetchWeather() {
     const params = new URLSearchParams({
         latitude: state.lat,
         longitude: state.lon,
-        current: ['temperature_2m', 'relative_humidity_2m', 'apparent_temperature', 'is_day', 'weather_code', 'wind_speed_10m'],
-        hourly: ['temperature_2m', 'weather_code', 'dew_point_2m'],
+        current: ['temperature_2m', 'relative_humidity_2m', 'apparent_temperature', 'is_day', 'weather_code', 'wind_speed_10m', 'wind_direction_10m'],
+        hourly: ['temperature_2m', 'weather_code', 'dew_point_2m', 'precipitation_probability'],
         timezone: 'auto',
-        forecast_days: 1
+        forecast_days: 2
     });
 
     try {
@@ -112,84 +136,157 @@ async function fetchWeather() {
         const data = await res.json();
         updateUI(data);
     } catch (err) {
-        console.error("Weather fetch failed:", err);
+        console.error("Weer ophalen mislukt:", err);
     }
+}
+
+function getBeaufort(kmh) {
+    if (kmh < 1) return 0;
+    if (kmh <= 5) return 1;
+    if (kmh <= 11) return 2;
+    if (kmh <= 19) return 3;
+    if (kmh <= 28) return 4;
+    if (kmh <= 38) return 5;
+    if (kmh <= 49) return 6;
+    if (kmh <= 61) return 7;
+    if (kmh <= 74) return 8;
+    if (kmh <= 88) return 9;
+    if (kmh <= 102) return 10;
+    if (kmh <= 117) return 11;
+    return 12;
 }
 
 function updateUI(data) {
     const current = data.current;
-    const hourly = data.hourly;
-    
-    // Basic Info
+
     els.currentTemp.innerText = `${Math.round(current.temperature_2m)}°`;
     els.feelsLike.innerText = `${Math.round(current.apparent_temperature)}°`;
-    els.windSpeed.innerText = `${Math.round(current.wind_speed_10m)} km/h`;
-    
-    // Dew point from current hourly index
+
+    // Wind Force & Direction
+    const bft = getBeaufort(current.wind_speed_10m);
+    els.windForce.innerText = `${bft} Bft`;
+    if (els.windArrow) {
+        els.windArrow.style.transform = `rotate(${current.wind_direction_10m}deg)`;
+    }
+
     const hourIdx = new Date().getHours();
-    const dp = hourly.dew_point_2m[hourIdx];
+    const dp = data.hourly.dew_point_2m[hourIdx];
     els.dewPoint.innerText = `${Math.round(dp)}°`;
 
     const weatherInfo = getWeatherDesc(current.weather_code);
     els.weatherDesc.innerText = weatherInfo.desc;
-    
-    // Logic for running
+
+    els.iconContainer.innerHTML = `<i data-lucide="${weatherInfo.lucide}"></i>`;
+    if (window.lucide) lucide.createIcons();
+
+    updateComfortLevel(dp, current.temperature_2m);
     generateRecommendation(current, dp);
-    
-    // Hourly
+    renderChart(data.hourly);
     renderHourly(data.hourly);
-    
-    // Theme
-    updateTheme(current.weather_code, current.is_day);
+}
+
+function updateComfortLevel(dewPoint, temp) {
+    const tempF = (temp * 9 / 5) + 32;
+    const dpF = (dewPoint * 9 / 5) + 32;
+    const sum = tempF + dpF;
+
+    els.comfortContainer.classList.remove('hidden');
+    let level = "";
+    let cssClass = "";
+    let adjustment = "";
+
+    if (sum <= 100) {
+        level = "Perfect: gaan met die banaan!";
+        cssClass = "very-comfortable";
+        adjustment = "Lekker knallen op volle snelheid!";
+    } else if (sum <= 110) {
+        level = "Prima renweertje";
+        cssClass = "comfortable";
+        adjustment = "Tempo: 0% - 0.5% langzamer";
+    } else if (sum <= 120) {
+        level = "Beetje klammig hoor";
+        cssClass = "humid";
+        adjustment = "Tempo: 0.5% - 1.0% langzamer";
+    } else if (sum <= 130) {
+        level = "Lekker warmpjes!";
+        cssClass = "uncomfortable";
+        adjustment = "Tempo: 1.0% - 2.0% langzamer";
+    } else if (sum <= 140) {
+        level = "Plakkerig!";
+        cssClass = "uncomfortable";
+        adjustment = "Tempo: 2.0% - 3.0% langzamer";
+    } else if (sum <= 150) {
+        level = "Pittig hoor, rustig aan!";
+        cssClass = "oppressive";
+        adjustment = "Tempo: 3.0% - 4.5% langzamer";
+    } else if (sum <= 160) {
+        level = "Zwaar hoor, pas op jezelf";
+        cssClass = "oppressive";
+        adjustment = "Tempo: 4.5% - 6.0% langzamer";
+    } else if (sum <= 170) {
+        level = "Poeh, echt afzien dit!";
+        cssClass = "oppressive";
+        adjustment = "Tempo: 6.0% - 8.0% langzamer";
+    } else if (sum <= 180) {
+        level = "Extreem! Blijf drinken!";
+        cssClass = "oppressive";
+        adjustment = "Tempo: 8.0% - 10.0% langzamer";
+    } else {
+        level = "Niet doen! Veel te risicovol";
+        cssClass = "oppressive";
+        adjustment = "Stop met rennen, zoek de schaduw!";
+    }
+
+    els.comfortLevel.innerHTML = `<strong>${level}</strong><br><small>${adjustment}</small>`;
+    els.comfortContainer.className = `comfort-badge ${cssClass}`;
 }
 
 function getWeatherDesc(code) {
     const codes = {
-        0: { desc: "Clear sky", icon: "☀️" },
-        1: { desc: "Mainly clear", icon: "🌤️" },
-        2: { desc: "Partly cloudy", icon: "⛅" },
-        3: { desc: "Overcast", icon: "☁️" },
-        45: { desc: "Fog", icon: "🌫️" },
-        51: { desc: "Drizzle", icon: "🌦️" },
-        61: { desc: "Rain", icon: "🌧️" },
-        71: { desc: "Snow", icon: "❄️" },
-        95: { desc: "Thunderstorm", icon: "⛈️" }
+        0: { desc: "Strakblauwe lucht, heerlijk!", icon: "☀️", lucide: "sun" },
+        1: { desc: "Appeltje-eitje zonnetje", icon: "🌤️", lucide: "cloud-sun" },
+        2: { desc: "Wat wolkjes, prima zo", icon: "⛅", lucide: "cloud-sun" },
+        3: { desc: "Helemaal grijs, maar ach", icon: "☁️", lucide: "cloud" },
+        45: { desc: "Mist! Pas op de paaltjes", icon: "🌫️", lucide: "cloud-fog" },
+        51: { desc: "Miezeren, word je hard van!", icon: "🌦️", lucide: "cloud-drizzle" },
+        61: { desc: "Regen! Gratis verfrissing", icon: "🌧️", lucide: "cloud-rain" },
+        71: { desc: "Sneeuw! Tijd voor winterbanden", icon: "❄️", lucide: "cloud-snow" },
+        95: { desc: "Onweer! Blijf maar lekker binnen", icon: "⛈️", lucide: "cloud-lightning" }
     };
-    return codes[code] || { desc: "Unknown", icon: "🌡️" };
+    return codes[code] || { desc: "Vreemd weertje vandaag", icon: "🌡️", lucide: "thermometer" };
 }
 
 function generateRecommendation(current, dewPoint) {
     const temp = current.temperature_2m;
     const feelsLike = current.apparent_temperature;
     const wind = current.wind_speed_10m;
-    
-    let badge = "Prima hardloopweer!";
+    const bft = getBeaufort(wind);
+
+    let badge = "Gaan met die banaan!";
     let type = "success";
     let tip = "";
 
-    // Clothing logic based on user rules
     if (temp < 0) {
-        badge = "Koud! Kleed je dik aan.";
+        badge = "Brrr, ijskoud!";
         type = "warning";
-        tip = "<strong>Wat trek je aan?</strong><br>Onder de 0°C is een lange broek (tights) essentieel. Draag ook een jasje, een muts en handschoentjes.";
+        tip = "<strong>Wat trekken we aan?</strong><br>Onder de 0°C zijn we geen helden: lange broek (tights) is een must! Trek ook een lekker jasje, een muts en handschoentjes aan.";
     } else if (temp >= 0 && temp <= 7) {
-        badge = "Frisjes, maar goed te doen.";
+        badge = "Lekker frisjes hoor!";
         type = "success";
-        tip = "<strong>Wat trek je aan?</strong><br>Korte broek kan tot 0 graden! Maar draag wel een jasje. ";
-        if (feelsLike < 0 || wind > 20) {
-            tip += "Omdat de gevoelstemperatuur laag is of het hard waait, zijn handschoenen of een matje aanbevolen.";
+        tip = "<strong>Wat trekken we aan?</strong><br>Korte broek kan prima tot 0 graden voor de bikkels! Maar gooi er wel een jasje overheen.";
+        if (feelsLike < 0 || bft >= 4) {
+            tip += " Door die gure wind die snijdt zijn handschoentjes misschien toch een goed idee voor je vingertoppen.";
         }
     } else {
-        badge = "Lekker hardloopweer!";
+        badge = "Heerlijk renweertje!";
         type = "success";
-        tip = "<strong>Wat trek je aan?</strong><br>Boven de 7 graden loop je natuurlijk in een T-shirt en korte broek.";
+        tip = "<strong>Wat trekken we aan?</strong><br>Boven de 7 graden is het T-shirt weer! Korte broek aan en vlammen maar.";
     }
 
-    // Warnings
     let warnings = [];
-    if (wind > 40) warnings.push("⚠️ Harde wind! Pas op voor takken en windvlagen.");
-    if (temp > 25) warnings.push("☀️ Warm! Vergeet niet te hydrateren.");
-    if (dewPoint > 18) warnings.push("💧 Hoge luchtvochtigheid (benauwd).");
+    if (bft >= 6) warnings.push("💨 Oei, flinke wind (6+ Bft)! Blijf uit de buurt van krakende takken.");
+    if (temp > 25) warnings.push("🔥 Heet hoor! Drink genoeg water, anders droog je uit.");
+    if (dewPoint > 18) warnings.push("💦 Pfff, wat een luchtvochtigheid. Rustig aan doen!");
 
     els.recommendationBadge.innerText = badge;
     els.recommendationBadge.className = `badge ${type}`;
@@ -203,43 +300,122 @@ function generateRecommendation(current, dewPoint) {
     }
 }
 
+function renderChart(hourly) {
+    const ctx = document.getElementById('temp-chart').getContext('2d');
+    const now = new Date().getHours();
+    const labels = [];
+    const temps = [];
+    const rain = [];
+
+    for (let i = now; i < now + 48; i++) {
+        if (!hourly.temperature_2m[i]) break;
+        const date = new Date();
+        date.setHours(i);
+        const day = date.toLocaleDateString('nl-NL', { weekday: 'short' });
+        const time = date.getHours() + ':00';
+        labels.push(date.getHours() === 0 ? `${day} ${time}` : time);
+        temps.push(hourly.temperature_2m[i]);
+        rain.push(hourly.precipitation_probability[i]);
+    }
+
+    if (state.chart) state.chart.destroy();
+
+    state.chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Temp (°C)',
+                    data: temps,
+                    borderColor: '#1a73e8',
+                    backgroundColor: 'rgba(26, 115, 232, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Regen (%)',
+                    data: rain,
+                    borderColor: '#1e8e3e',
+                    backgroundColor: 'rgba(30, 142, 62, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: true, position: 'top' },
+                tooltip: { mode: 'index', intersect: false }
+            },
+            scales: {
+                x: { grid: { display: true, color: 'rgba(0,0,0,0.05)' } },
+                y: { display: true, position: 'left' },
+                y1: { display: true, position: 'right', min: 0, max: 100 }
+            }
+        }
+    });
+
+    document.querySelector('.chart-scroll-wrapper').scrollLeft = 0;
+}
+
 function renderHourly(hourly) {
     els.hourlyForecast.innerHTML = '';
     const now = new Date().getHours();
-    
-    for (let i = now; i < now + 8; i++) {
+    for (let i = now; i < now + 24; i++) {
         if (!hourly.temperature_2m[i]) break;
-        
         const item = document.createElement('div');
         item.className = 'hourly-item';
-        const time = i % 24;
-        const temp = Math.round(hourly.temperature_2m[i]);
-        const code = hourly.weather_code[i];
-        const icon = getWeatherDesc(code).icon;
-        
+        const date = new Date();
+        date.setHours(i);
+        const time = date.getHours() + ':00';
+        const weather = getWeatherDesc(hourly.weather_code[i]);
         item.innerHTML = `
-            <span class="hourly-time">${time}:00</span>
-            <span class="hourly-icon">${icon}</span>
-            <span class="hourly-temp">${temp}°</span>
+            <span class="hourly-time">${time}</span>
+            <span class="hourly-icon">${weather.icon}</span>
+            <span class="hourly-temp">${Math.round(hourly.temperature_2m[i])}°</span>
         `;
         els.hourlyForecast.appendChild(item);
     }
 }
 
-function updateTheme(code, isDay) {
-    let bg = "#f0f4f8";
-    if (!isDay) {
-        bg = "#1a1c1e";
-        document.body.style.color = "#ffffff";
-        var root = document.querySelector(':root');
-        root.style.setProperty('--card-bg', 'rgba(40, 44, 52, 0.8)');
-        root.style.setProperty('--text-primary', '#ffffff');
-        root.style.setProperty('--text-secondary', '#abb2bf');
-    } else {
-        if (code >= 61) bg = "#e1e8f0"; // Rain
-        else if (code <= 3) bg = "#fff9e6"; // Sunny/Clear
+async function fetchWebcams() {
+    try {
+        state.webcams = [
+            { title: "Centraal Station", url: "https://images.unsplash.com/photo-1590059103313-f3d8507542c5?auto=format&fit=crop&w=800&q=80" },
+            { title: "Dam Square", url: "https://images.unsplash.com/photo-1524047934617-ce782c24e7f3?auto=format&fit=crop&w=800&q=80" },
+            { title: "Prinsengracht", url: "https://images.unsplash.com/photo-1512470876302-972fad2aa9dd?auto=format&fit=crop&w=800&q=80" }
+        ];
+
+        if (state.city !== "Amsterdam" && state.city !== "Jouw plekje") {
+            state.webcams = [
+                { title: `${state.city} Stadsgezicht 1`, url: `https://images.unsplash.com/photo-1449034446853-66c86144b0ad?auto=format&fit=crop&w=800&q=80` },
+                { title: `${state.city} Stadsgezicht 2`, url: `https://images.unsplash.com/photo-1444723121867-7a241cacace9?auto=format&fit=crop&w=800&q=80` }
+            ];
+        }
+
+        state.webcamIdx = 0;
+        updateWebcamUI();
+    } catch (err) {
+        console.error("Webcam ophalen mislukt:", err);
     }
-    document.body.style.background = bg;
+}
+
+function updateWebcamUI() {
+    if (state.webcams.length > 0) {
+        const cam = state.webcams[state.webcamIdx];
+        els.webcamImg.src = cam.url;
+        els.webcamLocation.innerText = cam.title;
+    }
+}
+
+function cycleWebcam(dir) {
+    state.webcamIdx = (state.webcamIdx + dir + state.webcams.length) % state.webcams.length;
+    updateWebcamUI();
 }
 
 init();
