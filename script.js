@@ -83,12 +83,20 @@ async function init() {
     els.prevWebcam.addEventListener('click', () => cycleWebcam(-1));
     els.nextWebcam.addEventListener('click', () => cycleWebcam(1));
 
+    if (els.webcamImg) {
+        els.webcamImg.onerror = () => {
+            els.webcamImg.src = "https://images.unsplash.com/photo-1590059103313-f3d8507542c5?auto=format&fit=crop&w=800&q=80"; // Fallback
+            els.webcamLocation.innerText = "Beeld tijdelijk niet beschikbaar";
+        };
+    }
+
     if (window.lucide) lucide.createIcons();
 }
 
 function updateTime() {
+    if (!els.currentTime) return;
     const now = new Date();
-    els.currentTime.innerText = now.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' }) + ' • ' + now.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+    els.currentTime.innerText = now.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
 }
 
 async function searchCity(query) {
@@ -126,7 +134,7 @@ async function fetchWeather() {
         latitude: state.lat,
         longitude: state.lon,
         current: ['temperature_2m', 'relative_humidity_2m', 'apparent_temperature', 'is_day', 'weather_code', 'wind_speed_10m', 'wind_direction_10m'],
-        hourly: ['temperature_2m', 'weather_code', 'dew_point_2m', 'precipitation_probability'],
+        hourly: ['temperature_2m', 'weather_code', 'dew_point_2m', 'precipitation'],
         timezone: 'auto',
         forecast_days: 2
     });
@@ -160,23 +168,24 @@ function updateUI(data) {
     const current = data.current;
 
     els.currentTemp.innerText = `${Math.round(current.temperature_2m)}°`;
-    els.feelsLike.innerText = `${Math.round(current.apparent_temperature)}°`;
+    if (els.feelsLike) els.feelsLike.innerText = `${Math.round(current.apparent_temperature)}°`;
 
-    // Wind Force & Direction
     const bft = getBeaufort(current.wind_speed_10m);
-    els.windForce.innerText = `${bft} Bft`;
+    if (els.windForce) els.windForce.innerText = `${bft} Bft`;
     if (els.windArrow) {
         els.windArrow.style.transform = `rotate(${current.wind_direction_10m}deg)`;
     }
 
     const hourIdx = new Date().getHours();
     const dp = data.hourly.dew_point_2m[hourIdx];
-    els.dewPoint.innerText = `${Math.round(dp)}°`;
+    if (els.dewPoint) els.dewPoint.innerText = `${Math.round(dp)}°`;
 
     const weatherInfo = getWeatherDesc(current.weather_code);
-    els.weatherDesc.innerText = weatherInfo.desc;
+    if (els.weatherDesc) els.weatherDesc.innerText = weatherInfo.desc;
 
-    els.iconContainer.innerHTML = `<i data-lucide="${weatherInfo.lucide}"></i>`;
+    if (els.iconContainer) {
+        els.iconContainer.innerHTML = `<i data-lucide="${weatherInfo.lucide}"></i>`;
+    }
     if (window.lucide) lucide.createIcons();
 
     updateComfortLevel(dp, current.temperature_2m);
@@ -190,6 +199,7 @@ function updateComfortLevel(dewPoint, temp) {
     const dpF = (dewPoint * 9 / 5) + 32;
     const sum = tempF + dpF;
 
+    if (!els.comfortContainer) return;
     els.comfortContainer.classList.remove('hidden');
     let level = "";
     let cssClass = "";
@@ -237,20 +247,22 @@ function updateComfortLevel(dewPoint, temp) {
         adjustment = "Stop met rennen, zoek de schaduw!";
     }
 
-    els.comfortLevel.innerHTML = `<strong>${level}</strong><br><small>${adjustment}</small>`;
+    if (els.comfortLevel) {
+        els.comfortLevel.innerHTML = `<strong>${level}</strong><br><small>${adjustment}</small>`;
+    }
     els.comfortContainer.className = `comfort-badge ${cssClass}`;
 }
 
 function getWeatherDesc(code) {
     const codes = {
         0: { desc: "Strakblauwe lucht, heerlijk!", icon: "☀️", lucide: "sun" },
-        1: { desc: "Appeltje-eitje zonnetje", icon: "🌤️", lucide: "cloud-sun" },
-        2: { desc: "Wat wolkjes, prima zo", icon: "⛅", lucide: "cloud-sun" },
+        1: { desc: "Appeltje-eitje zonnetje", icon: "🌤️", lucide: "sun" },
+        2: { desc: "Wat wolkjes, prima zo", icon: "⛅", lucide: "cloud" },
         3: { desc: "Helemaal grijs, maar ach", icon: "☁️", lucide: "cloud" },
-        45: { desc: "Mist! Pas op de paaltjes", icon: "🌫️", lucide: "cloud-fog" },
+        45: { desc: "Mist! Pas op de paaltjes", icon: "🌫️", lucide: "cloud" },
         51: { desc: "Miezeren, word je hard van!", icon: "🌦️", lucide: "cloud-drizzle" },
         61: { desc: "Regen! Gratis verfrissing", icon: "🌧️", lucide: "cloud-rain" },
-        71: { desc: "Sneeuw! Tijd voor winterbanden", icon: "❄️", lucide: "cloud-snow" },
+        71: { desc: "Sneeuw! Pas op voor de gladheid", icon: "❄️", lucide: "snowflake" },
         95: { desc: "Onweer! Blijf maar lekker binnen", icon: "⛈️", lucide: "cloud-lightning" }
     };
     return codes[code] || { desc: "Vreemd weertje vandaag", icon: "🌡️", lucide: "thermometer" };
@@ -288,34 +300,42 @@ function generateRecommendation(current, dewPoint) {
     if (temp > 25) warnings.push("🔥 Heet hoor! Drink genoeg water, anders droog je uit.");
     if (dewPoint > 18) warnings.push("💦 Pfff, wat een luchtvochtigheid. Rustig aan doen!");
 
-    els.recommendationBadge.innerText = badge;
-    els.recommendationBadge.className = `badge ${type}`;
-    els.clothingTip.innerHTML = `<p>${tip}</p>`;
+    if (els.recommendationBadge) {
+        els.recommendationBadge.innerText = badge;
+        els.recommendationBadge.className = `badge ${type}`;
+    }
+    if (els.clothingTip) els.clothingTip.innerHTML = `<p>${tip}</p>`;
 
-    if (warnings.length > 0) {
-        els.warnings.innerHTML = warnings.join('<br>');
-        els.warnings.classList.remove('hidden');
-    } else {
-        els.warnings.classList.add('hidden');
+    if (els.warnings) {
+        if (warnings.length > 0) {
+            els.warnings.innerHTML = warnings.join('<br>');
+            els.warnings.classList.remove('hidden');
+        } else {
+            els.warnings.classList.add('hidden');
+        }
     }
 }
 
 function renderChart(hourly) {
-    const ctx = document.getElementById('temp-chart').getContext('2d');
-    const now = new Date().getHours();
+    const canvas = document.getElementById('temp-chart');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const nowISO = new Date().toISOString().substring(0, 14) + '00';
+    let startIndex = hourly.time.findIndex(t => t >= nowISO);
+    if (startIndex === -1) startIndex = 0;
+
     const labels = [];
     const temps = [];
     const rain = [];
 
-    for (let i = now; i < now + 48; i++) {
-        if (!hourly.temperature_2m[i]) break;
-        const date = new Date();
-        date.setHours(i);
+    for (let i = startIndex; i < startIndex + 48; i++) {
+        if (hourly.temperature_2m[i] === undefined) break;
+        const date = new Date(hourly.time[i]);
         const day = date.toLocaleDateString('nl-NL', { weekday: 'short' });
         const time = date.getHours() + ':00';
         labels.push(date.getHours() === 0 ? `${day} ${time}` : time);
         temps.push(hourly.temperature_2m[i]);
-        rain.push(hourly.precipitation_probability[i]);
+        rain.push(hourly.precipitation[i] || 0);
     }
 
     if (state.chart) state.chart.destroy();
@@ -335,7 +355,7 @@ function renderChart(hourly) {
                     yAxisID: 'y'
                 },
                 {
-                    label: 'Regen (%)',
+                    label: 'Regen (mm)',
                     data: rain,
                     borderColor: '#1e8e3e',
                     backgroundColor: 'rgba(30, 142, 62, 0.1)',
@@ -349,21 +369,34 @@ function renderChart(hourly) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: true, position: 'top' },
+                legend: { display: false },
                 tooltip: { mode: 'index', intersect: false }
             },
             scales: {
                 x: { grid: { display: true, color: 'rgba(0,0,0,0.05)' } },
-                y: { display: true, position: 'left' },
-                y1: { display: true, position: 'right', min: 0, max: 100 }
+                y: {
+                    display: true,
+                    position: 'left',
+                    title: { display: true, text: '°C', font: { weight: 'bold', size: 14 }, color: '#1a1b1e' }
+                },
+                y1: {
+                    display: true,
+                    position: 'right',
+                    min: 0,
+                    suggestedMax: 2,
+                    title: { display: true, text: 'mm', font: { weight: 'bold', size: 14 }, color: '#1a1b1e' },
+                    grid: { display: false }
+                }
             }
         }
     });
 
-    document.querySelector('.chart-scroll-wrapper').scrollLeft = 0;
+    const wrapper = document.querySelector('.chart-scroll-wrapper');
+    if (wrapper) wrapper.scrollLeft = 0;
 }
 
 function renderHourly(hourly) {
+    if (!els.hourlyForecast) return;
     els.hourlyForecast.innerHTML = '';
     const now = new Date().getHours();
     for (let i = now; i < now + 24; i++) {
@@ -388,14 +421,22 @@ async function fetchWebcams() {
         state.webcams = [
             { title: "Centraal Station", url: "https://images.unsplash.com/photo-1590059103313-f3d8507542c5?auto=format&fit=crop&w=800&q=80" },
             { title: "Dam Square", url: "https://images.unsplash.com/photo-1524047934617-ce782c24e7f3?auto=format&fit=crop&w=800&q=80" },
-            { title: "Prinsengracht", url: "https://images.unsplash.com/photo-1512470876302-972fad2aa9dd?auto=format&fit=crop&w=800&q=80" }
+            { title: "Canals View", url: "https://images.unsplash.com/photo-1512470876302-972fad2aa9dd?auto=format&fit=crop&w=800&q=80" }
         ];
 
         if (state.city !== "Amsterdam" && state.city !== "Jouw plekje") {
+            const cityQuery = encodeURIComponent(state.city + " city");
             state.webcams = [
-                { title: `${state.city} Stadsgezicht 1`, url: `https://images.unsplash.com/photo-1449034446853-66c86144b0ad?auto=format&fit=crop&w=800&q=80` },
-                { title: `${state.city} Stadsgezicht 2`, url: `https://images.unsplash.com/photo-1444723121867-7a241cacace9?auto=format&fit=crop&w=800&q=80` }
+                { title: `${state.city} Stadsgezicht`, url: `https://source.unsplash.com/featured/?${cityQuery}` },
+                { title: `${state.city} Omgeving`, url: `https://source.unsplash.com/featured/?nature,${cityQuery}` }
             ];
+            // Fallback for newer Unsplash API behavior if source.unsplash.com fails
+            if (state.city === "Utrecht") {
+                state.webcams = [
+                    { title: "Domtoren Utrecht", url: "https://images.unsplash.com/photo-1601662528567-526cd06f6582?auto=format&fit=crop&w=800&q=80" },
+                    { title: "Grachten Utrecht", url: "https://images.unsplash.com/photo-1569428034239-695d1372c70a?auto=format&fit=crop&w=800&q=80" }
+                ];
+            }
         }
 
         state.webcamIdx = 0;
@@ -406,10 +447,10 @@ async function fetchWebcams() {
 }
 
 function updateWebcamUI() {
-    if (state.webcams.length > 0) {
+    if (state.webcams.length > 0 && els.webcamImg) {
         const cam = state.webcams[state.webcamIdx];
         els.webcamImg.src = cam.url;
-        els.webcamLocation.innerText = cam.title;
+        if (els.webcamLocation) els.webcamLocation.innerText = cam.title;
     }
 }
 

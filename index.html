@@ -4,18 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hardloopweer - Is it a good day to run?</title>
+    <title>Hardloopweer - Is het een goede dag om te rennen?</title>
     <meta name="description"
-        content="Quickly check if it's running weather in Amsterdam or your current location. Get clothing recommendations based on temperature, wind, and dew point.">
+        content="Check snel of het hardloopweer is in jouw stad. Krijg kledingadvies en bekijk de weersverwachting.">
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/png" href="favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="icon" href="favicon.ico">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
-    <div id="app">
+    <div class="container--v3">
         <header>
             <div class="header-main">
                 <img src="logo.png" alt="Hardloopweer Logo" class="logo">
@@ -23,7 +26,7 @@
             </div>
             <div class="search-container">
                 <input type="text" id="city-search" placeholder="Stad zoeken..." autocomplete="off">
-                <button id="location-btn" title="Use current location">
+                <button id="location-btn" title="Gebruik huidige locatie">
                     <svg viewBox="0 0 24 24" width="24" height="24">
                         <path fill="currentColor"
                             d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.06 3.52 6.37 3.06 10.54H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z" />
@@ -33,44 +36,48 @@
         </header>
 
         <main>
-            <section id="weather-hero" class="card">
-                <div class="location-info">
-                    <h1 id="city-name">Amsterdam</h1>
-                    <p id="current-time">Loading...</p>
-                </div>
-
-                <div class="weather-main">
-                    <div id="weather-icon-container">
-                        <i data-lucide="sun"></i>
-                    </div>
-                    <div class="temp-container">
-                        <span id="current-temp">--°</span>
-                        <span id="weather-description">--</span>
-                    </div>
-                </div>
-
-                <div class="weather-details">
-                    <div class="detail-item">
-                        <span class="label">Gevoelstemperatuur</span>
-                        <span id="feels-like" class="value">--°</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="label">Wind</span>
-                        <div class="wind-display">
-                            <span id="wind-force" class="value">-- Bft</span>
-                            <i id="wind-arrow" data-lucide="arrow-up" class="wind-arrow"></i>
+            <div class="weather-hero-container">
+                <section id="weather-hero" class="card">
+                    <div class="hero-content">
+                        <div class="hero-left">
+                            <span id="current-temp">--°</span>
+                        </div>
+                        <div class="hero-right">
+                            <div class="hero-top-row">
+                                <div id="weather-icon-container">
+                                    <i data-lucide="sun"></i>
+                                </div>
+                                <div class="location-info">
+                                    <h2 id="city-name">Amsterdam</h2>
+                                    <p><span id="current-time"></span> • <span id="weather-description">Laden...</span>
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="weather-metrics">
+                                <div class="metric-item">
+                                    <span class="label">Gevoel</span>
+                                    <span id="feels-like" class="value">--°</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="label">Wind</span>
+                                    <div class="wind-display">
+                                        <span id="wind-force" class="value">-- Bft</span>
+                                        <i id="wind-arrow" data-lucide="arrow-up" class="wind-arrow"></i>
+                                    </div>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="label">Dauw</span>
+                                    <span id="dew-point" class="value">--°</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="detail-item">
-                        <span class="label">Dauwpunt</span>
-                        <span id="dew-point" class="value">--°</span>
+                    <div id="comfort-container" class="comfort-badge hidden">
+                        <i data-lucide="activity"></i>
+                        <span id="comfort-level">--</span>
                     </div>
-                </div>
-                <div id="comfort-container" class="comfort-badge hidden">
-                    <i data-lucide="droplets"></i>
-                    <span id="comfort-level">Comfortabel</span>
-                </div>
-            </section>
+                </section>
+            </div>
 
             <section id="running-recommendation" class="card highlight">
                 <h2>Mag ik al rennen?</h2>
@@ -79,12 +86,12 @@
                     <p>Weer ophalen voor advies...</p>
                 </div>
                 <div id="weather-warnings" class="warnings hidden">
-                    <!-- Warnings here -->
+                    <!-- Waarschuwingen hier -->
                 </div>
             </section>
 
             <section id="webcam-section" class="card">
-                <h3>Vind de situatie</h3>
+                <h3>Zo ziet het eruit buiten</h3>
                 <div class="webcam-gallery">
                     <img id="webcam-img" src="" alt="Webcam view">
                     <div class="webcam-controls">
@@ -96,14 +103,18 @@
             </section>
 
             <section id="forecast-mini" class="card">
-                <h3>Verwachting</h3>
+                <h3>Temperatuur & Regen</h3>
+                <div class="chart-legend">
+                    <div class="legend-item"><span class="dot temp"></span> Temperatuur (°C)</div>
+                    <div class="legend-item"><span class="dot rain"></span> Regen (mm)</div>
+                </div>
                 <div class="chart-scroll-wrapper">
                     <div class="chart-container">
                         <canvas id="temp-chart"></canvas>
                     </div>
                 </div>
                 <div id="hourly-forecast" class="scroll-x">
-                    <!-- Hourly items here -->
+                    <!-- Uurlijkse items hier -->
                 </div>
             </section>
         </main>
@@ -113,7 +124,6 @@
         </footer>
     </div>
     <div id="bg-overlay"></div>
-    <div id="bg-image"></div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="script.js"></script>

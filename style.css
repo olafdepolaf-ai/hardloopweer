@@ -11,6 +11,12 @@
     --elevation-1: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
     --elevation-2: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
     --elevation-3: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
+    --radius-md: 12px;
+    --radius-lg: 24px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
 }
 
 * {
@@ -30,12 +36,6 @@ body {
     overflow-x: hidden;
 }
 
-#bg-image,
-#bg-overlay {
-    display: none;
-    /* Removed as per request for simplicity */
-}
-
 #app {
     width: 100%;
     max-width: 500px;
@@ -45,46 +45,64 @@ body {
 
 header {
     margin-bottom: 24px;
-    text-align: center;
+}
+
+.webcam-container {
+    position: relative;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    background: #f1f3f4;
+    aspect-ratio: 16/9;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#webcam-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: opacity 0.3s ease;
 }
 
 .header-main {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 24px;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding: 0 8px;
 }
 
 .logo {
-    width: 80px;
-    height: 80px;
-    border-radius: 24px;
-    box-shadow: var(--elevation-2);
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
 }
 
 .header-main h1 {
-    font-size: 2.2rem;
+    font-size: 1.8rem;
     font-weight: 600;
     color: #ffffff;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .search-container {
-    position: relative;
     display: flex;
     align-items: center;
-    background: var(--card-bg);
-    border-radius: 28px;
-    padding: 8px 20px;
-    box-shadow: var(--elevation-1);
+    background: #f1f3f4;
+    border-radius: var(--radius-lg);
+    padding: 6px 16px;
+    width: 100%;
+    max-width: 400px;
+    transition: box-shadow 0.2s;
+    margin: 0 auto;
 }
 
 #city-search {
     flex-grow: 1;
     border: none;
     background: transparent;
-    padding: 10px;
+    padding: 8px;
     font-size: 1rem;
     font-family: inherit;
     outline: none;
@@ -112,72 +130,155 @@ header {
     padding: 24px;
     margin-bottom: 20px;
     box-shadow: var(--elevation-1);
-    border: none;
-}
-
-.highlight {
-    background: linear-gradient(135deg, rgba(66, 133, 244, 0.1), rgba(66, 133, 244, 0.05));
-    border: 1px solid rgba(66, 133, 244, 0.2);
-}
-
-#weather-hero {
-    text-align: center;
-}
-
-#city-name {
-    font-size: 1.5rem;
-    font-weight: 600;
-    margin-bottom: 4px;
-    opacity: 0.9;
-}
-
-#current-time {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-    margin-bottom: 20px;
-}
-
-.weather-main {
+    color: var(--text-primary);
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-bottom: 24px;
+    text-align: center;
+}
+
+#weather-hero.card {
+    align-items: stretch;
+    /* Keep hero content layout */
+}
+
+#running-recommendation {
+    background: var(--card-bg);
+    /* Ensuring it's white */
+}
+
+/* Weather Hero Reorganization */
+.hero-content {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-bottom: 16px;
+}
+
+.hero-left {
+    flex: 0 0 auto;
 }
 
 #current-temp {
-    font-size: 4.5rem;
-    font-weight: 300;
+    font-size: 3rem;
+    /* Reduced from 6rem equivalent */
+    font-weight: 600;
+    color: var(--text-primary);
     line-height: 1;
 }
 
-#weather-description {
-    display: block;
-    font-size: 1.2rem;
-    color: var(--text-secondary);
-    margin-top: 8px;
+.weather-hero-container {
+    display: flex;
+    justify-content: center;
+    width: 100%;
 }
 
-.weather-details {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    padding-top: 20px;
-    margin-bottom: 20px;
+#weather-hero {
+    margin-bottom: var(--spacing-lg);
+    overflow: hidden;
+    position: relative;
+    max-width: 600px;
+    width: 100%;
+}
+
+.hero-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xl);
+    padding: var(--spacing-lg) 0;
+}
+
+#weather-icon-container {
+    font-size: 2.5rem;
+    color: #f9ab00;
+    /* Standard warm yellow */
+    display: flex;
+    align-items: center;
+}
+
+#recommendation-card {
+    border-left: 4px solid var(--primary);
+    background: #e8f0fe;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+#recommendation-text {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: var(--text-main);
+    margin: 0;
+    max-width: 80%;
+}
+
+i[data-lucide] {
+    stroke-width: 2;
+}
+
+.location-info h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-align: left;
+}
+
+#weather-description {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    text-transform: capitalize;
+}
+
+.weather-metrics {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+}
+
+.metric-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.metric-item .label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metric-item .value {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.wind-display {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.wind-arrow {
+    width: 16px;
+    height: 16px;
+    color: var(--accent-color);
+    transition: transform 0.5s ease;
 }
 
 .comfort-badge {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 18px;
+    gap: 8px;
+    padding: 10px 16px;
     background: #f8f9fa;
-    border-radius: 28px;
-    font-size: 0.95rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
     font-weight: 600;
-    margin-top: 12px;
+    margin-top: 8px;
     box-shadow: var(--elevation-1);
-    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .comfort-badge.very-comfortable {
@@ -205,51 +306,14 @@ header {
     background: #fce8e6;
 }
 
-.detail-item {
-    display: flex;
-    flex-direction: column;
-}
-
-.wind-display {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.wind-arrow {
-    width: 20px;
-    height: 20px;
-    color: var(--accent-color);
-    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-}
-
-.label {
-    font-size: 0.85rem;
-    color: var(--text-secondary);
-    margin-bottom: 4px;
-}
-
-.value {
-    font-weight: 600;
-    font-size: 1.1rem;
-    color: var(--text-primary);
-}
-
-#running-recommendation h2 {
-    font-size: 1.1rem;
-    margin-bottom: 16px;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-}
-
+/* Running Recommendation */
 .badge {
     display: inline-block;
-    padding: 10px 20px;
+    padding: 12px 20px;
     border-radius: 12px;
     font-weight: 600;
     margin-bottom: 16px;
-    font-size: 1.3rem;
+    font-size: 1.2rem;
     box-shadow: var(--elevation-1);
 }
 
@@ -279,43 +343,52 @@ header {
     background: #fce8e6;
     border-radius: 16px;
     color: var(--danger-color);
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    box-shadow: var(--elevation-1);
 }
 
-.hidden {
-    display: none !important;
-}
-
-.scroll-x {
-    display: flex;
-    overflow-x: auto;
-    padding: 16px 0;
-    gap: 20px;
-    scrollbar-width: thin;
-}
-
-.hourly-item {
+#forecast-mini {
     display: flex;
     flex-direction: column;
     align-items: center;
-    min-width: 70px;
-    padding: 12px;
-    background: #f8f9fa;
-    border-radius: 16px;
-    box-shadow: var(--elevation-1);
+    /* Centering content */
 }
 
-.hourly-time {
+#forecast-mini h3 {
+    margin-bottom: 8px;
+    width: 100%;
+    text-align: center;
+}
+
+.chart-legend {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
     font-size: 0.85rem;
-    color: var(--text-secondary);
-    margin-bottom: 6px;
+    font-weight: 600;
+    justify-content: center;
+    width: 100%;
 }
 
-.hourly-temp {
-    font-weight: 600;
-    font-size: 1.1rem;
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot.temp {
+    background-color: #1a73e8;
+}
+
+.dot.rain {
+    background-color: #1e8e3e;
 }
 
 .chart-scroll-wrapper {
@@ -323,101 +396,49 @@ header {
     overflow-x: auto;
     scrollbar-width: thin;
     margin-bottom: 20px;
-    -webkit-overflow-scrolling: touch;
+    cursor: grab;
+}
+
+.chart-scroll-wrapper:active {
+    cursor: grabbing;
 }
 
 .chart-container {
     height: 250px;
-    min-width: 1500px;
-    /* Width to handle 48h data */
-    padding-bottom: 10px;
+    min-width: 1200px;
 }
 
-i[data-lucide] {
-    width: 20px;
-    height: 20px;
+.scroll-x {
+    display: flex;
+    overflow-x: auto;
+    padding: 16px 0;
+    gap: 16px;
+    scrollbar-width: thin;
 }
 
-.weather-main i[data-lucide] {
-    width: 64px;
-    height: 64px;
-    margin-bottom: 10px;
-}
-
-.webcam-gallery {
-    position: relative;
+.hourly-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 65px;
+    padding: 12px;
+    background: #f8f9fa;
     border-radius: 16px;
-    overflow: hidden;
-    background: #000;
-    aspect-ratio: 16 / 9;
+    box-shadow: var(--elevation-1);
 }
 
-#webcam-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-}
-
-.webcam-controls {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 15px;
-    color: white;
-}
-
-.webcam-controls button {
-    background: rgba(255, 255, 255, 0.2);
-    border: none;
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.webcam-controls button:hover {
-    background: rgba(255, 255, 255, 0.4);
-}
-
-#webcam-location {
-    font-size: 0.8rem;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 70%;
+.hidden {
+    display: none !important;
 }
 
 footer {
     text-align: center;
-    padding: 20px;
-    color: var(--text-secondary);
-    font-size: 0.8rem;
+    padding: 24px;
+    color: #ffffff;
+    opacity: 0.8;
+    font-size: 0.9rem;
 }
 
-/* Animations */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.card {
-    animation: fadeIn 0.5s ease forwards;
+i[data-lucide] {
+    stroke-width: 2.5;
 }
