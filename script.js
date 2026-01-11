@@ -416,28 +416,35 @@ function renderHourly(hourly) {
     }
 }
 
+const CITY_IMAGES = {
+    "Amsterdam": [
+        "https://images.unsplash.com/photo-1590059103313-f3d8507542c5?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1524047934617-ce782c24e7f3?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1512470876302-972fad2aa9dd?auto=format&fit=crop&w=800&q=80"
+    ],
+    "Utrecht": [
+        "https://images.unsplash.com/photo-1601662528567-526cd06f6582?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1569428034239-695d1372c70a?auto=format&fit=crop&w=800&q=80"
+    ],
+    "Rotterdam": [
+        "https://images.unsplash.com/photo-1496425745709-f992d77341b6?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1588691880486-dae37a24c2d2?auto=format&fit=crop&w=800&q=80"
+    ],
+    "default": [
+        "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=800&q=80", // Running
+        "https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?auto=format&fit=crop&w=800&q=80", // City Generic
+        "https://images.unsplash.com/photo-1449824913929-79aec8680a8b?auto=format&fit=crop&w=800&q=80" // Park
+    ]
+};
+
 async function fetchWebcams() {
     try {
-        state.webcams = [
-            { title: "Centraal Station", url: "https://images.unsplash.com/photo-1590059103313-f3d8507542c5?auto=format&fit=crop&w=800&q=80" },
-            { title: "Dam Square", url: "https://images.unsplash.com/photo-1524047934617-ce782c24e7f3?auto=format&fit=crop&w=800&q=80" },
-            { title: "Canals View", url: "https://images.unsplash.com/photo-1512470876302-972fad2aa9dd?auto=format&fit=crop&w=800&q=80" }
-        ];
+        const images = CITY_IMAGES[state.city] || CITY_IMAGES["default"];
 
-        if (state.city !== "Amsterdam" && state.city !== "Jouw plekje") {
-            const cityQuery = encodeURIComponent(state.city + " city");
-            state.webcams = [
-                { title: `${state.city} Stadsgezicht`, url: `https://source.unsplash.com/featured/?${cityQuery}` },
-                { title: `${state.city} Omgeving`, url: `https://source.unsplash.com/featured/?nature,${cityQuery}` }
-            ];
-            // Fallback for newer Unsplash API behavior if source.unsplash.com fails
-            if (state.city === "Utrecht") {
-                state.webcams = [
-                    { title: "Domtoren Utrecht", url: "https://images.unsplash.com/photo-1601662528567-526cd06f6582?auto=format&fit=crop&w=800&q=80" },
-                    { title: "Grachten Utrecht", url: "https://images.unsplash.com/photo-1569428034239-695d1372c70a?auto=format&fit=crop&w=800&q=80" }
-                ];
-            }
-        }
+        state.webcams = images.map((url, idx) => ({
+            title: `${state.city} - Beeld ${idx + 1}`,
+            url: url
+        }));
 
         state.webcamIdx = 0;
         updateWebcamUI();
@@ -450,7 +457,12 @@ function updateWebcamUI() {
     if (state.webcams.length > 0 && els.webcamImg) {
         const cam = state.webcams[state.webcamIdx];
         els.webcamImg.src = cam.url;
+        // Make sure it looks like a "view"
         if (els.webcamLocation) els.webcamLocation.innerText = cam.title;
+        els.webcamImg.onerror = () => {
+            // Redundant validation essentially, but keeps it safe
+            els.webcamImg.src = CITY_IMAGES["default"][0];
+        };
     }
 }
 
