@@ -56,6 +56,35 @@ header {
     padding: 0 8px;
 }
 
+.search-toggle {
+    margin-left: auto;
+    border: none;
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    cursor: pointer;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.search-toggle:hover {
+    background: rgba(255, 255, 255, 0.32);
+}
+
+.search-toggle.active {
+    background: rgba(255, 255, 255, 0.35);
+}
+
+.search-toggle i[data-lucide] {
+    width: 20px;
+    height: 20px;
+}
+
 .logo {
     width: 48px;
     height: 48px;
@@ -76,8 +105,17 @@ header {
     padding: 6px 16px;
     width: 100%;
     max-width: 400px;
-    transition: box-shadow 0.2s;
     margin: 0 auto;
+    overflow: hidden;
+    max-height: 60px;
+    opacity: 1;
+    transition: max-height 0.3s ease, opacity 0.25s ease, margin-bottom 0.3s ease;
+}
+
+.search-container.collapsed {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: -20px;
 }
 
 #city-search {

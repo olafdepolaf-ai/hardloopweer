@@ -24,7 +24,9 @@ const els = {
     iconContainer: document.getElementById('weather-icon-container'),
     comfortContainer: document.getElementById('comfort-container'),
     comfortLevel: document.getElementById('comfort-level'),
-    buienradarFrame: document.getElementById('buienradar-frame')
+    buienradarFrame: document.getElementById('buienradar-frame'),
+    searchContainer: document.getElementById('search-container'),
+    searchToggle: document.getElementById('search-toggle')
 };
 
 let state = {
@@ -34,6 +36,12 @@ let state = {
     chart: null,
     uvChart: null
 };
+
+function onLocationGranted() {
+    els.searchContainer?.classList.add('collapsed');
+    els.searchToggle?.classList.remove('hidden');
+    if (window.lucide) lucide.createIcons();
+}
 
 async function init() {
     updateTime();
@@ -48,6 +56,7 @@ async function init() {
                 fetchWeather();
                 updateBuienradar();
                 reverseGeocode(state.lat, state.lon);
+                onLocationGranted();
             },
             () => {
                 fetchWeather();
@@ -68,7 +77,14 @@ async function init() {
             fetchWeather();
             updateBuienradar();
             reverseGeocode(state.lat, state.lon);
+            onLocationGranted();
         });
+    });
+
+    els.searchToggle?.addEventListener('click', () => {
+        const isCollapsed = els.searchContainer.classList.toggle('collapsed');
+        els.searchToggle.classList.toggle('active', !isCollapsed);
+        if (!isCollapsed) els.citySearch.focus();
     });
 
     if (window.lucide) lucide.createIcons();
@@ -98,6 +114,10 @@ async function searchCity(query) {
             els.cityName.innerText = state.city;
             fetchWeather();
             updateBuienradar();
+            if (!els.searchToggle.classList.contains('hidden')) {
+                els.searchContainer.classList.add('collapsed');
+                els.searchToggle.classList.remove('active');
+            }
         }
     } catch (err) {
         console.error("Zoektocht mislukt:", err);
