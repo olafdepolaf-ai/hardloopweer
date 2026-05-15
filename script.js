@@ -55,7 +55,7 @@ const els = {
     recommendationBadge: document.getElementById('recommendation-badge'),
     clothingTip: document.getElementById('clothing-tip'),
     warnings: document.getElementById('weather-warnings'),
-    iconContainer: document.getElementById('weather-icon-container'),
+    weatherIcon: document.getElementById('weather-icon'),
     comfortContainer: document.getElementById('comfort-container'),
     comfortLevel: document.getElementById('comfort-level'),
     buienradarFrame: document.getElementById('buienradar-frame'),
@@ -262,11 +262,11 @@ function updateUI(data) {
     const dp = data.hourly.dew_point_2m[hourIdx];
     if (els.dewPoint) els.dewPoint.innerText = `${Math.round(dp)}°`;
 
-    const weatherInfo = getWeatherDesc(current.weather_code);
-    if (els.weatherDesc) els.weatherDesc.innerText = weatherInfo.desc;
-
-    if (els.iconContainer) {
-        els.iconContainer.innerHTML = `<i data-lucide="${weatherInfo.lucide}"></i>`;
+    const weatherDesc = getWeatherDesc(current.weather_code);
+    if (els.weatherDesc) els.weatherDesc.innerText = weatherDesc;
+    if (els.weatherIcon) {
+        els.weatherIcon.src = getMeteoconSrc(current.weather_code, current.is_day);
+        els.weatherIcon.alt = weatherDesc;
     }
     if (window.lucide) lucide.createIcons();
 
@@ -316,20 +316,51 @@ function updateComfortLevel(dewPoint, temp) {
     els.comfortContainer.className = `comfort-badge ${cssClass}`;
 }
 
+const METEOCON_BASE = 'https://cdn.jsdelivr.net/npm/@meteocons/svg@0.1.0/fill/';
+
+const METEOCON_MAP = {
+    0:  ['clear-day',         'clear-night'],
+    1:  ['mostly-clear-day',  'mostly-clear-night'],
+    2:  ['partly-cloudy-day', 'partly-cloudy-night'],
+    3:  ['overcast',          'overcast'],
+    45: ['fog-day',           'fog-night'],
+    48: ['fog-day',           'fog-night'],
+    51: ['drizzle',           'drizzle'],
+    53: ['drizzle',           'drizzle'],
+    55: ['drizzle',           'drizzle'],
+    56: ['sleet',             'sleet'],
+    57: ['sleet',             'sleet'],
+    61: ['rain',              'rain'],
+    63: ['rain',              'rain'],
+    65: ['rain',              'rain'],
+    66: ['sleet',             'sleet'],
+    67: ['sleet',             'sleet'],
+    71: ['snow',              'snow'],
+    73: ['snow',              'snow'],
+    75: ['snow',              'snow'],
+    77: ['snow',              'snow'],
+    80: ['rain',              'rain'],
+    81: ['rain',              'rain'],
+    82: ['rain',              'rain'],
+    85: ['snow',              'snow'],
+    86: ['snow',              'snow'],
+    95: ['thunderstorms-day', 'thunderstorms-night'],
+    96: ['thunderstorms',     'thunderstorms'],
+    99: ['extreme-thunderstorms', 'extreme-thunderstorms'],
+};
+
+function getMeteoconSrc(code, isDay) {
+    const pair = METEOCON_MAP[code] || ['overcast', 'overcast'];
+    return METEOCON_BASE + pair[isDay === 1 ? 0 : 1] + '.svg';
+}
+
 function getWeatherDesc(code) {
     const map = {
-        0:  { key: 'weather_0',  icon: "☀️",  lucide: "sun" },
-        1:  { key: 'weather_1',  icon: "🌤️", lucide: "sun" },
-        2:  { key: 'weather_2',  icon: "⛅",  lucide: "cloud" },
-        3:  { key: 'weather_3',  icon: "☁️",  lucide: "cloud" },
-        45: { key: 'weather_45', icon: "🌫️", lucide: "cloud" },
-        51: { key: 'weather_51', icon: "🌦️", lucide: "cloud-drizzle" },
-        61: { key: 'weather_61', icon: "🌧️", lucide: "cloud-rain" },
-        71: { key: 'weather_71', icon: "❄️",  lucide: "snowflake" },
-        95: { key: 'weather_95', icon: "⛈️",  lucide: "cloud-lightning" }
+        0:  'weather_0',  1:  'weather_1',  2:  'weather_2',
+        3:  'weather_3',  45: 'weather_45', 51: 'weather_51',
+        61: 'weather_61', 71: 'weather_71', 95: 'weather_95',
     };
-    const entry = map[code] || { key: 'weather_default', icon: "🌡️", lucide: "thermometer" };
-    return { desc: t(entry.key), icon: entry.icon, lucide: entry.lucide };
+    return t(map[code] || 'weather_default');
 }
 
 function buildClothingItems(temp, bft, uvIndex) {

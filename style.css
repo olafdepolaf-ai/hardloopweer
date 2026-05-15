@@ -173,6 +173,15 @@ header {
 
 .hero-left {
     flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.weather-icon-main {
+    width: 80px;
+    height: 80px;
 }
 
 #current-temp {
