@@ -333,6 +333,9 @@ header {
 .tip-content {
     line-height: 1.6;
     color: var(--text-primary);
+    width: 100%;
+    text-align: left;
+    font-size: 1rem;
 }
 
 .warnings {
@@ -343,6 +346,8 @@ header {
     color: var(--danger-color);
     font-size: 0.95rem;
     font-weight: 600;
+    width: 100%;
+    text-align: left;
 }
 
 #forecast-mini {
