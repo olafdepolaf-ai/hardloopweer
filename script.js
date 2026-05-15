@@ -207,6 +207,7 @@ async function fetchWeather() {
         longitude: state.lon,
         current: ['temperature_2m', 'relative_humidity_2m', 'apparent_temperature', 'is_day', 'weather_code', 'wind_speed_10m', 'wind_direction_10m'],
         hourly: ['temperature_2m', 'weather_code', 'dew_point_2m', 'precipitation', 'uv_index'],
+        daily: ['sunrise', 'sunset'],
         timezone: 'auto',
         forecast_days: 2
     });
@@ -273,7 +274,7 @@ function updateUI(data) {
     const currentUV = data.hourly.uv_index?.[hourIdx] ?? 0;
     generateRecommendation(current, dp, currentUV);
     renderChart(data.hourly);
-    renderUVChart(data.hourly);
+    renderUVChart(data.hourly, data.daily);
 }
 
 function updateComfortLevel(dewPoint, temp) {
@@ -603,7 +604,7 @@ function getUVLevel(uv) {
     return       { label: t('uv_very_high'),       cls: 'uv-very-high', color: '#D93025', tip: t('uv_tip_very_high') };
 }
 
-function renderUVChart(hourly) {
+function renderUVChart(hourly, daily) {
     const canvas = document.getElementById('uv-chart');
     if (!canvas) return;
 
@@ -611,14 +612,31 @@ function renderUVChart(hourly) {
     const todayStart = hourly.time.findIndex(t => t.startsWith(today));
     if (todayStart === -1) return;
 
+    // Determine X-axis window: 1h before sunrise → 1h after sunset, min 12h
+    let startHour = 5, endHour = 21;
+    const sunriseStr = daily?.sunrise?.find(s => s.startsWith(today));
+    const sunsetStr  = daily?.sunset?.find(s => s.startsWith(today));
+    if (sunriseStr && sunsetStr) {
+        const riseH = parseInt(sunriseStr.substring(11, 13), 10);
+        const setH  = parseInt(sunsetStr.substring(11, 13), 10);
+        startHour = Math.max(0, riseH - 1);
+        endHour   = Math.min(23, setH + 1);
+        if (endHour - startHour < 12) {
+            const mid = Math.round((startHour + endHour) / 2);
+            startHour = Math.max(0, mid - 6);
+            endHour   = Math.min(23, mid + 6);
+        }
+    }
+
     const labels = [];
     const predicted = [];
-    for (let i = todayStart; i < todayStart + 24 && i < hourly.time.length; i++) {
+    for (let i = todayStart + startHour; i <= todayStart + endHour && i < hourly.time.length; i++) {
         labels.push(hourly.time[i].substring(11, 16));
         predicted.push(hourly.uv_index[i] ?? 0);
     }
 
     const currentHour = locationHour();
+    const currentHourInSlice = currentHour - startHour;
     const maxUV = Math.max(...predicted);
     const uvInfo = getUVLevel(maxUV);
 
@@ -627,14 +645,15 @@ function renderUVChart(hourly) {
     const levelEl = document.getElementById('uv-level');
     const tipEl = document.getElementById('uv-tip');
 
-    if (currentEl) currentEl.innerText = (predicted[currentHour] ?? 0).toFixed(1);
+    const currentUVValue = hourly.uv_index[todayStart + currentHour] ?? 0;
+    if (currentEl) currentEl.innerText = currentUVValue.toFixed(1);
     if (maxEl) maxEl.innerText = maxUV.toFixed(1);
     if (levelEl) { levelEl.innerText = uvInfo.label; levelEl.className = `uv-badge ${uvInfo.cls}`; }
     if (tipEl) tipEl.innerText = uvInfo.tip;
 
-    // Initiële gemeten curve: Open-Meteo verleden uren (null voor de toekomst)
-    const measuredFallback = predicted.map((v, i) => i <= currentHour ? v : null);
-    drawUVChart(canvas, uvInfo, labels, predicted, measuredFallback, currentHour);
+    // Initiële gemeten curve: verleden uren t/m nu (null voor toekomst)
+    const measuredFallback = predicted.map((v, i) => i <= currentHourInSlice ? v : null);
+    drawUVChart(canvas, uvInfo, labels, predicted, measuredFallback);
 
     // Vervang gemeten curve door echte RIVM-meetwaarden als beschikbaar
     fetchRIVMUV().then(rivm => {
@@ -648,7 +667,7 @@ function renderUVChart(hourly) {
         // Bands 82-108 zijn meetwaarden: Band108 = nu, elke stap terug = 15 min
         const now = new Date();
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
-        const rivmMeasured = new Array(24).fill(null);
+        const rivmFull = new Array(24).fill(null);
         const bucketCount = new Array(24).fill(0);
 
         for (let b = 82; b <= 108; b++) {
@@ -659,20 +678,20 @@ function renderUVChart(hourly) {
             if (measureMin < 0) continue;
             const hour = Math.round(measureMin / 60);
             if (hour < 0 || hour > 23) continue;
-            // Gemiddelde per uur (meerdere 15-min waarden per uur)
-            rivmMeasured[hour] = rivmMeasured[hour] === null
+            rivmFull[hour] = rivmFull[hour] === null
                 ? val
-                : (rivmMeasured[hour] * bucketCount[hour] + val) / (bucketCount[hour] + 1);
+                : (rivmFull[hour] * bucketCount[hour] + val) / (bucketCount[hour] + 1);
             bucketCount[hour]++;
         }
 
-        if (rivmMeasured.some(v => v !== null)) {
-            drawUVChart(canvas, uvInfo, labels, predicted, rivmMeasured, currentHour);
+        const rivmSliced = rivmFull.slice(startHour, endHour + 1);
+        if (rivmSliced.some(v => v !== null)) {
+            drawUVChart(canvas, uvInfo, labels, predicted, rivmSliced);
         }
     });
 }
 
-function drawUVChart(canvas, uvInfo, labels, predicted, measured, currentHour) {
+function drawUVChart(canvas, uvInfo, labels, predicted, measured) {
     const ctx = canvas.getContext('2d');
     if (state.uvChart) state.uvChart.destroy();
 
