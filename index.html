@@ -112,18 +112,6 @@
                 </div>
             </section>
 
-            <section id="webcam-section" class="card">
-                <h3>Zo ziet het eruit buiten</h3>
-                <div class="webcam-gallery">
-                    <img id="webcam-img" src="" alt="Webcam view">
-                    <div class="webcam-controls">
-                        <button id="prev-webcam" title="Vorige"><i data-lucide="chevron-left"></i></button>
-                        <span id="webcam-location">Zoeken naar camera's...</span>
-                        <button id="next-webcam" title="Volgende"><i data-lucide="chevron-right"></i></button>
-                    </div>
-                </div>
-            </section>
-
             <section id="forecast-mini" class="card">
                 <h3>Temperatuur & Regen</h3>
                 <div class="chart-legend">
@@ -135,14 +123,39 @@
                         <canvas id="temp-chart"></canvas>
                     </div>
                 </div>
-                <div id="hourly-forecast" class="scroll-x">
-                    <!-- Uurlijkse items hier -->
+            </section>
+
+            <section id="buienradar-section" class="card">
+                <h3>Regenradar</h3>
+                <div class="buienradar-container">
+                    <iframe id="buienradar-frame"
+                        src=""
+                        scrolling="no"
+                        frameborder="0"
+                        allowfullscreen
+                        title="Buienradar regenradar"></iframe>
                 </div>
+                <p class="buienradar-credit">Data: <a href="https://www.buienradar.nl" target="_blank" rel="noopener">Buienradar.nl</a></p>
             </section>
         </main>
 
         <footer>
-            <p>Data door Open-Meteo • Voor hardlopers, door hardlopers</p>
+            <div class="footer-links">
+                <a href="https://www.buienradar.nl" target="_blank" rel="noopener">Buienradar.nl</a>
+                <span class="footer-dot">·</span>
+                <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a>
+                <span class="footer-dot">·</span>
+                <a href="https://github.com/olafdepolaf-ai/hardloopweer" target="_blank" rel="noopener">GitHub</a>
+            </div>
+            <div class="footer-made">
+                Made with
+                <svg class="amsterdam-heart" viewBox="0 0 100 100" aria-hidden="true">
+                    <path d="M50 80 L10 40 Q0 20 20 10 Q40 0 50 20 Q60 0 80 10 Q100 20 90 40 Z" fill="currentColor"/>
+                    <path d="M35 38 L50 53 L65 38" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                in Amsterdam by
+                <a href="https://www.linkedin.com/in/olaflemmers/" target="_blank" rel="noopener">Olaf Lemmers</a>
+            </div>
         </footer>
     </div>
     <div id="bg-overlay"></div>

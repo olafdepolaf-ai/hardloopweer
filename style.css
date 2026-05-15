@@ -47,26 +47,6 @@ header {
     margin-bottom: 24px;
 }
 
-.webcam-gallery {
-    position: relative;
-    border-radius: var(--radius-md);
-    overflow: hidden;
-    background: #f1f3f4;
-    aspect-ratio: 16/9;
-    width: 100%;
-    max-width: 600px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto;
-}
-
-#webcam-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: opacity 0.3s ease;
-}
 
 .header-main {
     display: flex;
@@ -383,23 +363,34 @@ header {
     min-width: 1200px;
 }
 
-.scroll-x {
-    display: flex;
-    overflow-x: auto;
-    padding: 16px 0;
-    gap: 16px;
-    scrollbar-width: thin;
+.buienradar-container {
+    width: 100%;
+    border-radius: var(--radius-md);
+    overflow: hidden;
 }
 
-.hourly-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-width: 65px;
-    padding: 12px;
-    background: #f8f9fa;
-    border-radius: 16px;
-    box-shadow: var(--elevation-1);
+#buienradar-frame {
+    width: 100%;
+    height: 380px;
+    border: none;
+    display: block;
+}
+
+@media (min-width: 480px) {
+    #buienradar-frame {
+        height: 500px;
+    }
+}
+
+.buienradar-credit {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.buienradar-credit a {
+    color: var(--accent-color);
+    text-decoration: none;
 }
 
 .hidden {
@@ -408,10 +399,62 @@ header {
 
 footer {
     text-align: center;
-    padding: 24px;
+    padding: 24px 16px 32px;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.footer-links {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.footer-links a {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.footer-links a:hover {
     color: #ffffff;
-    opacity: 0.8;
-    font-size: 0.9rem;
+}
+
+.footer-dot {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.footer-made {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.55);
+    margin-top: 2px;
+}
+
+.footer-made a {
+    color: rgba(255, 255, 255, 0.8);
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.15s;
+}
+
+.footer-made a:hover {
+    color: #ffffff;
+}
+
+.amsterdam-heart {
+    width: 14px;
+    height: 14px;
+    color: #e8172d;
+    flex-shrink: 0;
 }
 
 i[data-lucide] {

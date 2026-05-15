@@ -6,7 +6,6 @@ const CONFIG = {
     DEFAULT_LON: 4.9041
 };
 
-// UI Elements
 const els = {
     citySearch: document.getElementById('city-search'),
     locationBtn: document.getElementById('location-btn'),
@@ -22,31 +21,23 @@ const els = {
     recommendationBadge: document.getElementById('recommendation-badge'),
     clothingTip: document.getElementById('clothing-tip'),
     warnings: document.getElementById('weather-warnings'),
-    hourlyForecast: document.getElementById('hourly-forecast'),
-    app: document.getElementById('app'),
-    webcamImg: document.getElementById('webcam-img'),
-    webcamLocation: document.getElementById('webcam-location'),
-    prevWebcam: document.getElementById('prev-webcam'),
-    nextWebcam: document.getElementById('next-webcam'),
     iconContainer: document.getElementById('weather-icon-container'),
     comfortContainer: document.getElementById('comfort-container'),
-    comfortLevel: document.getElementById('comfort-level')
+    comfortLevel: document.getElementById('comfort-level'),
+    buienradarFrame: document.getElementById('buienradar-frame')
 };
 
-// State
 let state = {
     lat: CONFIG.DEFAULT_LAT,
     lon: CONFIG.DEFAULT_LON,
     city: CONFIG.DEFAULT_CITY,
-    webcams: [],
-    webcamIdx: 0,
     chart: null
 };
 
-// Init
 async function init() {
     updateTime();
     setInterval(updateTime, 10000);
+    updateBuienradar();
 
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -54,17 +45,15 @@ async function init() {
                 state.lat = pos.coords.latitude;
                 state.lon = pos.coords.longitude;
                 fetchWeather();
-                fetchWebcams();
+                updateBuienradar();
                 reverseGeocode(state.lat, state.lon);
             },
             () => {
                 fetchWeather();
-                fetchWebcams();
             }
         );
     } else {
         fetchWeather();
-        fetchWebcams();
     }
 
     els.citySearch.addEventListener('keypress', (e) => {
@@ -76,20 +65,10 @@ async function init() {
             state.lat = pos.coords.latitude;
             state.lon = pos.coords.longitude;
             fetchWeather();
-            fetchWebcams();
+            updateBuienradar();
             reverseGeocode(state.lat, state.lon);
         });
     });
-
-    els.prevWebcam.addEventListener('click', () => cycleWebcam(-1));
-    els.nextWebcam.addEventListener('click', () => cycleWebcam(1));
-
-    if (els.webcamImg) {
-        els.webcamImg.onerror = () => {
-            els.webcamImg.src = "https://images.unsplash.com/photo-1590059103313-f3d8507542c5?auto=format&fit=crop&w=800&q=80"; // Fallback
-            els.webcamLocation.innerText = "Beeld tijdelijk niet beschikbaar";
-        };
-    }
 
     if (window.lucide) lucide.createIcons();
 }
@@ -98,6 +77,11 @@ function updateTime() {
     if (!els.currentTime) return;
     const now = new Date();
     els.currentTime.innerText = now.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+}
+
+function updateBuienradar() {
+    if (!els.buienradarFrame) return;
+    els.buienradarFrame.src = `https://gadgets.buienradar.nl/gadget/zoommap/?lat=${state.lat}&lng=${state.lon}&overname=2&zoom=10&zoomlevel=0&pins=0&naam=${encodeURIComponent(state.city)}`;
 }
 
 async function searchCity(query) {
@@ -112,7 +96,7 @@ async function searchCity(query) {
             state.city = loc.name;
             els.cityName.innerText = state.city;
             fetchWeather();
-            fetchWebcams();
+            updateBuienradar();
         }
     } catch (err) {
         console.error("Zoektocht mislukt:", err);
@@ -125,6 +109,7 @@ async function reverseGeocode(lat, lon) {
         const data = await res.json();
         state.city = data.address.city || data.address.town || data.address.village || "Jouw plekje";
         els.cityName.innerText = state.city;
+        updateBuienradar();
     } catch (err) {
         els.cityName.innerText = "Ergens op de wereld";
     }
@@ -193,7 +178,6 @@ function updateUI(data) {
     updateComfortLevel(dp, current.temperature_2m);
     generateRecommendation(current, dp);
     renderChart(data.hourly);
-    renderHourly(data.hourly);
 }
 
 function updateComfortLevel(dewPoint, temp) {
@@ -395,82 +379,6 @@ function renderChart(hourly) {
 
     const wrapper = document.querySelector('.chart-scroll-wrapper');
     if (wrapper) wrapper.scrollLeft = 0;
-}
-
-function renderHourly(hourly) {
-    if (!els.hourlyForecast) return;
-    els.hourlyForecast.innerHTML = '';
-    const now = new Date().getHours();
-    for (let i = now; i < now + 24; i++) {
-        if (!hourly.temperature_2m[i]) break;
-        const item = document.createElement('div');
-        item.className = 'hourly-item';
-        const date = new Date();
-        date.setHours(i);
-        const time = date.getHours() + ':00';
-        const weather = getWeatherDesc(hourly.weather_code[i]);
-        item.innerHTML = `
-            <span class="hourly-time">${time}</span>
-            <span class="hourly-icon">${weather.icon}</span>
-            <span class="hourly-temp">${Math.round(hourly.temperature_2m[i])}°</span>
-        `;
-        els.hourlyForecast.appendChild(item);
-    }
-}
-
-const CITY_IMAGES = {
-    "Amsterdam": [
-        "https://images.unsplash.com/photo-1590059103313-f3d8507542c5?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1524047934617-ce782c24e7f3?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1512470876302-972fad2aa9dd?auto=format&fit=crop&w=800&q=80"
-    ],
-    "Utrecht": [
-        "https://images.unsplash.com/photo-1601662528567-526cd06f6582?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1569428034239-695d1372c70a?auto=format&fit=crop&w=800&q=80"
-    ],
-    "Rotterdam": [
-        "https://images.unsplash.com/photo-1496425745709-f992d77341b6?auto=format&fit=crop&w=800&q=80",
-        "https://images.unsplash.com/photo-1588691880486-dae37a24c2d2?auto=format&fit=crop&w=800&q=80"
-    ],
-    "default": [
-        "https://images.unsplash.com/photo-1476480862126-209bfaa8edc8?auto=format&fit=crop&w=800&q=80", // Running
-        "https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?auto=format&fit=crop&w=800&q=80", // City Generic
-        "https://images.unsplash.com/photo-1449824913929-79aec8680a8b?auto=format&fit=crop&w=800&q=80" // Park
-    ]
-};
-
-async function fetchWebcams() {
-    try {
-        const images = CITY_IMAGES[state.city] || CITY_IMAGES["default"];
-
-        state.webcams = images.map((url, idx) => ({
-            title: `${state.city} - Beeld ${idx + 1}`,
-            url: url
-        }));
-
-        state.webcamIdx = 0;
-        updateWebcamUI();
-    } catch (err) {
-        console.error("Webcam ophalen mislukt:", err);
-    }
-}
-
-function updateWebcamUI() {
-    if (state.webcams.length > 0 && els.webcamImg) {
-        const cam = state.webcams[state.webcamIdx];
-        els.webcamImg.src = cam.url;
-        // Make sure it looks like a "view"
-        if (els.webcamLocation) els.webcamLocation.innerText = cam.title;
-        els.webcamImg.onerror = () => {
-            // Redundant validation essentially, but keeps it safe
-            els.webcamImg.src = CITY_IMAGES["default"][0];
-        };
-    }
-}
-
-function cycleWebcam(dir) {
-    state.webcamIdx = (state.webcamIdx + dir + state.webcams.length) % state.webcams.length;
-    updateWebcamUI();
 }
 
 init();
