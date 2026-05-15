@@ -579,7 +579,26 @@ header {
     align-items: center;
     justify-content: center;
     gap: 10px;
+    margin-bottom: 6px;
+}
+
+.uv-max-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 6px;
     margin-bottom: 16px;
+}
+
+.uv-stat-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.uv-stat-secondary {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-secondary);
 }
 
 .uv-stat-value {

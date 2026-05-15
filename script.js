@@ -816,16 +816,16 @@ function renderChart(hourly, minutely15) {
 // ---- UV / Zonkracht ----
 
 const UV_ZONES = [
-    { min: 0, max: 3,        color: '#57BB8A' },
-    { min: 3, max: 5,        color: '#F9AB00' },
-    { min: 5, max: 7,        color: '#F57C00' },
-    { min: 7, max: Infinity, color: '#D93025' }
+    { min: 0,   max: 2.5,      color: '#57BB8A' },
+    { min: 2.5, max: 4.5,      color: '#F9AB00' },
+    { min: 4.5, max: 6.5,      color: '#F57C00' },
+    { min: 6.5, max: Infinity, color: '#D93025' }
 ];
 
 function uvZoneColor(v) {
-    if (v < 3) return '#57BB8A';
-    if (v < 5) return '#F9AB00';
-    if (v < 7) return '#F57C00';
+    if (v < 2.5) return '#57BB8A';
+    if (v < 4.5) return '#F9AB00';
+    if (v < 6.5) return '#F57C00';
     return '#D93025';
 }
 
@@ -897,12 +897,26 @@ async function fetchRIVMUV() {
     return null;
 }
 
+function parseRIVMBands(props, startBand, endBand) {
+    const result = new Array(96).fill(null);
+    const utcOffsetMin = (state.utcOffsetSeconds || 0) / 60;
+    for (let k = 0; k < endBand - startBand + 1; k++) {
+        const val = props['Band' + (startBand + k)];
+        if (val === undefined || val === null || val < 0) continue;
+        const localMin = 180 + k * 15 + utcOffsetMin;
+        const localQuarter = Math.floor(localMin / 15);
+        if (localQuarter < 0 || localQuarter > 95) continue;
+        result[localQuarter] = val;
+    }
+    return result;
+}
+
 function getUVLevel(uv) {
-    if (uv < 1) return { label: t('uv_none'),     cls: 'uv-none',      color: '#9E9E9E', tip: t('uv_tip_none') };
-    if (uv < 3) return { label: t('uv_low'),      cls: 'uv-low',       color: '#57BB8A', tip: t('uv_tip_low') };
-    if (uv < 5) return { label: t('uv_moderate'), cls: 'uv-moderate',  color: '#F9AB00', tip: t('uv_tip_moderate') };
-    if (uv < 7) return { label: t('uv_high'),     cls: 'uv-high',      color: '#F57C00', tip: t('uv_tip_high') };
-    return       { label: t('uv_very_high'),       cls: 'uv-very-high', color: '#D93025', tip: t('uv_tip_very_high') };
+    if (uv < 1)   return { label: t('uv_none'),     cls: 'uv-none',      color: '#9E9E9E', tip: t('uv_tip_none') };
+    if (uv < 2.5) return { label: t('uv_low'),      cls: 'uv-low',       color: '#57BB8A', tip: t('uv_tip_low') };
+    if (uv < 4.5) return { label: t('uv_moderate'), cls: 'uv-moderate',  color: '#F9AB00', tip: t('uv_tip_moderate') };
+    if (uv < 6.5) return { label: t('uv_high'),     cls: 'uv-high',      color: '#F57C00', tip: t('uv_tip_high') };
+    return         { label: t('uv_very_high'),       cls: 'uv-very-high', color: '#D93025', tip: t('uv_tip_very_high') };
 }
 
 function renderUVChart(hourly, daily) {
@@ -913,7 +927,7 @@ function renderUVChart(hourly, daily) {
     const todayStart = hourly.time.findIndex(t => t.startsWith(today));
     if (todayStart === -1) return;
 
-    // Determine X-axis window: 1h before sunrise → 1h after sunset, min 12h
+    // X-axis window: 1h before sunrise → 1h after sunset, min 12h
     let startHour = 5, endHour = 21;
     const sunriseStr = daily?.sunrise?.find(s => s.startsWith(today));
     const sunsetStr  = daily?.sunset?.find(s => s.startsWith(today));
@@ -929,84 +943,93 @@ function renderUVChart(hourly, daily) {
         }
     }
 
+    // Build 15-min labels
     const labels = [];
-    const predicted = [];
+    for (let h = startHour; h <= endHour; h++) {
+        if (todayStart + h >= hourly.time.length) break;
+        for (let q = 0; q < 4; q++) {
+            labels.push(`${String(h).padStart(2, '0')}:${String(q * 15).padStart(2, '0')}`);
+        }
+    }
+
+    // Open-Meteo fallback: hourly value repeated over 4 quarters
+    const omPredicted = [];
     for (let h = startHour; h <= endHour; h++) {
         const idx = todayStart + h;
         if (idx >= hourly.time.length) break;
         const uvVal = hourly.uv_index[idx] ?? 0;
-        for (let q = 0; q < 4; q++) {
-            labels.push(`${String(h).padStart(2, '0')}:${String(q * 15).padStart(2, '0')}`);
-            predicted.push(uvVal);
-        }
+        for (let q = 0; q < 4; q++) omPredicted.push(uvVal);
     }
 
     const currentHour = locationHour();
     const currentQuarterInSlice = (currentHour - startHour) * 4 + Math.floor(locationMinute() / 15);
-    const maxUV = Math.max(...predicted);
-    const uvInfo = getUVLevel(maxUV);
 
     const currentEl = document.getElementById('uv-current');
-    const maxEl = document.getElementById('uv-max');
-    const levelEl = document.getElementById('uv-level');
-    const tipEl = document.getElementById('uv-tip');
+    const maxEl     = document.getElementById('uv-max');
+    const levelEl   = document.getElementById('uv-level');
+    const tipEl     = document.getElementById('uv-tip');
 
+    // Initial UI from Open-Meteo
+    const maxUVom = Math.max(...omPredicted);
+    const uvInfoOm = getUVLevel(maxUVom);
     const currentUVValue = hourly.uv_index[todayStart + currentHour] ?? 0;
     if (currentEl) currentEl.innerText = currentUVValue.toFixed(1);
-    if (maxEl) maxEl.innerText = maxUV.toFixed(1);
-    if (levelEl) { levelEl.innerText = uvInfo.label; levelEl.className = `uv-badge ${uvInfo.cls}`; }
-    if (tipEl) tipEl.innerText = uvInfo.tip;
+    if (maxEl) maxEl.innerText = maxUVom.toFixed(1);
+    if (levelEl) { levelEl.innerText = uvInfoOm.label; levelEl.className = `uv-badge ${uvInfoOm.cls}`; }
+    if (tipEl) tipEl.innerText = uvInfoOm.tip;
 
-    // Initiële gemeten curve: verleden kwartieren t/m nu (null voor toekomst)
-    const measuredFallback = predicted.map((v, i) => i <= currentQuarterInSlice ? v : null);
-    drawUVChart(canvas, uvInfo, labels, predicted, measuredFallback);
+    // Initial draw: Open-Meteo predicted + measured up to now
+    const omMeasured = omPredicted.map((v, i) => i <= currentQuarterInSlice ? v : null);
+    drawUVChart(canvas, labels, omPredicted, omMeasured);
 
     fetchRIVMUV().then(rivm => {
         if (!rivm) return;
 
-        // Band(75+k) for k=1..72 = measured UV at UTC slot 03:00 + (k-1)*15min
-        const utcOffsetMin = (state.utcOffsetSeconds || 0) / 60;
-        const rivmQuarterly = new Array(96).fill(null);
+        // Band4-75 = RIVM max. expected; Band76-147 = RIVM measured
+        const rivmExpected = parseRIVMBands(rivm, 4, 75);
+        const rivmMeasured = parseRIVMBands(rivm, 76, 147);
 
-        for (let k = 1; k <= 72; k++) {
-            const val = rivm['Band' + (75 + k)];
-            if (val === undefined || val === null || val < 0) continue;
-            const localMin = 180 + (k - 1) * 15 + utcOffsetMin;
-            const localQuarter = Math.floor(localMin / 15);
-            if (localQuarter < 0 || localQuarter > 95) continue;
-            rivmQuarterly[localQuarter] = val;
-        }
-
-        const rivmSliced = [];
+        const sliceExpected = [];
+        const sliceMeasured = [];
         for (let h = startHour; h <= endHour; h++) {
             for (let q = 0; q < 4; q++) {
-                rivmSliced.push(rivmQuarterly[h * 4 + q]);
+                sliceExpected.push(rivmExpected[h * 4 + q] ?? null);
+                sliceMeasured.push(rivmMeasured[h * 4 + q] ?? null);
             }
         }
-        if (!rivmSliced.some(v => v !== null)) return;
+        if (!sliceExpected.some(v => v !== null)) return;
 
+        // Update stats from RIVM expected max
+        const maxUVrivm = Math.max(...sliceExpected.filter(v => v !== null), 0);
+        const uvInfo = getUVLevel(maxUVrivm);
+        if (maxEl) maxEl.innerText = maxUVrivm.toFixed(1);
+        if (levelEl) { levelEl.innerText = uvInfo.label; levelEl.className = `uv-badge ${uvInfo.cls}`; }
+        if (tipEl) tipEl.innerText = uvInfo.tip;
+
+        // Current UV: latest RIVM measured, else RIVM expected for current quarter
         if (currentEl) {
-            const curLocalQuarter = locationHour() * 4 + Math.floor(locationMinute() / 15);
-            let found = false;
-            for (let qIdx = curLocalQuarter; qIdx >= 0 && !found; qIdx--) {
-                if (rivmQuarterly[qIdx] !== null) {
-                    currentEl.innerText = rivmQuarterly[qIdx].toFixed(1);
-                    currentEl.title = t('rivm_measured');
-                    found = true;
-                }
+            const curQuarter = currentHour * 4 + Math.floor(locationMinute() / 15);
+            let curVal = null;
+            for (let qIdx = curQuarter; qIdx >= 0 && curVal === null; qIdx--) {
+                if (rivmMeasured[qIdx] !== null) curVal = rivmMeasured[qIdx];
+            }
+            if (curVal === null) curVal = rivmExpected[curQuarter];
+            if (curVal !== null) {
+                currentEl.innerText = curVal.toFixed(1);
+                currentEl.title = t('rivm_measured');
             }
         }
 
-        drawUVChart(canvas, uvInfo, labels, predicted, rivmSliced);
+        drawUVChart(canvas, labels, sliceExpected, sliceMeasured);
     });
 }
 
-function drawUVChart(canvas, uvInfo, labels, predicted, measured) {
+function drawUVChart(canvas, labels, predicted, measured) {
     const ctx = canvas.getContext('2d');
     if (state.uvChart) state.uvChart.destroy();
 
     const maxPredicted = Math.max(...predicted.filter(v => v !== null && v > 0), 0);
-    const maxMeasured = Math.max(...measured.filter(v => v !== null && v > 0), 0);
+    const maxMeasured  = Math.max(...measured.filter(v => v !== null && v > 0), 0);
     const chartMax = Math.max(maxPredicted, maxMeasured);
 
     state.uvChart = new Chart(ctx, {
@@ -1017,33 +1040,26 @@ function drawUVChart(canvas, uvInfo, labels, predicted, measured) {
                 {
                     label: t('uv_label_predicted'),
                     data: predicted,
-                    borderColor: uvInfo.color + '66',
+                    borderColor: '#F57C00',
                     backgroundColor: 'transparent',
                     fill: false,
                     tension: 0.4,
                     pointRadius: 0,
                     borderWidth: 2,
-                    borderDash: [6, 4],
-                    segment: {
-                        borderColor: c => uvZoneColor(c.p1.parsed.y) + '88'
-                    }
+                    spanGaps: true
                 },
                 {
                     label: t('uv_label_measured'),
                     data: measured,
-                    borderColor: uvInfo.color,
+                    borderColor: '#1565C0',
                     backgroundColor: 'transparent',
                     fill: false,
                     tension: 0.15,
-                    pointRadius: measured.map(v => v !== null ? 3.5 : 0),
-                    pointBackgroundColor: measured.map(v => v !== null ? uvZoneColor(v) : 'transparent'),
-                    pointBorderColor: '#fff',
-                    pointBorderWidth: 1.5,
+                    pointRadius: 1.5,
+                    pointBackgroundColor: '#1565C0',
+                    pointBorderColor: '#1565C0',
                     borderWidth: 2.5,
-                    spanGaps: false,
-                    segment: {
-                        borderColor: c => uvZoneColor(c.p1.parsed.y)
-                    }
+                    spanGaps: false
                 }
             ]
         },
