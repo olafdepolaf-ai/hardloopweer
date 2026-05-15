@@ -438,15 +438,15 @@ function renderUVChart(hourly) {
     const todayStart = hourly.time.findIndex(t => t.startsWith(today));
     if (todayStart === -1) return;
 
-    const hours = [];
-    const uvVals = [];
+    const labels = [];
+    const predicted = [];
     for (let i = todayStart; i < todayStart + 24 && i < hourly.time.length; i++) {
-        hours.push(new Date(hourly.time[i]).getHours() + ':00');
-        uvVals.push(hourly.uv_index[i] ?? 0);
+        labels.push(new Date(hourly.time[i]).getHours() + ':00');
+        predicted.push(hourly.uv_index[i] ?? 0);
     }
 
     const currentHour = new Date().getHours();
-    const maxUV = Math.max(...uvVals);
+    const maxUV = Math.max(...predicted);
     const uvInfo = getUVLevel(maxUV);
 
     const currentEl = document.getElementById('uv-current');
@@ -454,52 +454,117 @@ function renderUVChart(hourly) {
     const levelEl = document.getElementById('uv-level');
     const tipEl = document.getElementById('uv-tip');
 
-    if (currentEl) currentEl.innerText = (uvVals[currentHour] ?? 0).toFixed(1);
+    if (currentEl) currentEl.innerText = (predicted[currentHour] ?? 0).toFixed(1);
     if (maxEl) maxEl.innerText = maxUV.toFixed(1);
     if (levelEl) { levelEl.innerText = uvInfo.label; levelEl.className = `uv-badge ${uvInfo.cls}`; }
     if (tipEl) tipEl.innerText = uvInfo.tip;
 
-    // Overschrijf "Nu" met werkelijk gemeten RIVM-waarde als beschikbaar
+    // Initiële gemeten curve: Open-Meteo verleden uren (null voor de toekomst)
+    const measuredFallback = predicted.map((v, i) => i <= currentHour ? v : null);
+    drawUVChart(canvas, uvInfo, labels, predicted, measuredFallback, currentHour);
+
+    // Vervang gemeten curve door echte RIVM-meetwaarden als beschikbaar
     fetchRIVMUV().then(rivm => {
-        if (rivm && rivm.Band1 > 0 && currentEl) {
+        if (!rivm) return;
+
+        if (rivm.Band1 > 0 && currentEl) {
             currentEl.innerText = rivm.Band1.toFixed(1);
             currentEl.title = 'Gemeten door RIVM';
         }
-    });
 
+        // Bands 82-108 zijn meetwaarden: Band108 = nu, elke stap terug = 15 min
+        const now = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const rivmMeasured = new Array(24).fill(null);
+        const bucketCount = new Array(24).fill(0);
+
+        for (let b = 82; b <= 108; b++) {
+            const val = rivm['Band' + b];
+            if (!val || val < 0) continue;
+            const minsAgo = (108 - b) * 15;
+            const measureMin = nowMinutes - minsAgo;
+            if (measureMin < 0) continue;
+            const hour = Math.round(measureMin / 60);
+            if (hour < 0 || hour > 23) continue;
+            // Gemiddelde per uur (meerdere 15-min waarden per uur)
+            rivmMeasured[hour] = rivmMeasured[hour] === null
+                ? val
+                : (rivmMeasured[hour] * bucketCount[hour] + val) / (bucketCount[hour] + 1);
+            bucketCount[hour]++;
+        }
+
+        if (rivmMeasured.some(v => v !== null)) {
+            drawUVChart(canvas, uvInfo, labels, predicted, rivmMeasured, currentHour);
+        }
+    });
+}
+
+function drawUVChart(canvas, uvInfo, labels, predicted, measured, currentHour) {
     const ctx = canvas.getContext('2d');
     const grad = ctx.createLinearGradient(0, 0, 0, canvas.offsetHeight || 180);
-    grad.addColorStop(0, uvInfo.color + 'bb');
-    grad.addColorStop(1, uvInfo.color + '0a');
+    grad.addColorStop(0, uvInfo.color + '30');
+    grad.addColorStop(1, uvInfo.color + '05');
 
     if (state.uvChart) state.uvChart.destroy();
 
     state.uvChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: hours,
-            datasets: [{
-                data: uvVals,
-                borderColor: uvInfo.color,
-                backgroundColor: grad,
-                fill: true,
-                tension: 0.4,
-                pointRadius: uvVals.map((_, i) => i === currentHour ? 5 : 0),
-                pointBackgroundColor: '#fff',
-                pointBorderColor: uvInfo.color,
-                pointBorderWidth: 2,
-                borderWidth: 2.5
-            }]
+            labels,
+            datasets: [
+                {
+                    label: 'Verwacht',
+                    data: predicted,
+                    borderColor: uvInfo.color + '66',
+                    backgroundColor: grad,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    borderWidth: 2,
+                    borderDash: [6, 4]
+                },
+                {
+                    label: 'Gemeten',
+                    data: measured,
+                    borderColor: uvInfo.color,
+                    backgroundColor: 'transparent',
+                    fill: false,
+                    tension: 0.15,
+                    pointRadius: measured.map(v => v !== null ? 3.5 : 0),
+                    pointBackgroundColor: uvInfo.color,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 1.5,
+                    borderWidth: 2.5,
+                    spanGaps: false
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: { display: false },
+                legend: {
+                    display: true,
+                    position: 'top',
+                    align: 'end',
+                    labels: {
+                        boxWidth: 24,
+                        padding: 12,
+                        font: { size: 11 },
+                        color: '#5f6368',
+                        usePointStyle: true,
+                        pointStyle: 'line'
+                    }
+                },
                 tooltip: {
                     mode: 'index',
                     intersect: false,
-                    callbacks: { label: ctx => `UV: ${ctx.parsed.y.toFixed(1)}` }
+                    callbacks: {
+                        label: item => item.parsed.y !== null
+                            ? `${item.dataset.label}: ${item.parsed.y.toFixed(1)}`
+                            : null,
+                        filter: item => item.parsed.y !== null
+                    }
                 }
             },
             scales: {
@@ -509,7 +574,7 @@ function renderUVChart(hourly) {
                 },
                 y: {
                     min: 0,
-                    suggestedMax: Math.max(maxUV + 0.5, 3),
+                    suggestedMax: Math.max(Math.max(...predicted) + 0.5, 3),
                     grid: { color: 'rgba(0,0,0,0.05)' },
                     ticks: { font: { size: 11 } }
                 }
