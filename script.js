@@ -331,6 +331,28 @@ function getWeatherDesc(code) {
     return { desc: t(entry.key), icon: entry.icon, lucide: entry.lucide };
 }
 
+function buildClothingItems(temp, bft, uvIndex) {
+    const items = [];
+    if (temp > 7) {
+        items.push(t('clothing_base_hot'));
+    } else if (temp >= 4) {
+        items.push(t('clothing_base_mild_long'));
+    } else if (temp >= 1) {
+        items.push(t('clothing_base_mild_soft'));
+    } else {
+        items.push(t('clothing_base_cold'));
+        if (temp < 0) {
+            items.push(t('clothing_add_gloves'));
+            items.push(t('clothing_add_hat'));
+        }
+    }
+    if (temp < 10 && bft >= 5) items.push(t('clothing_add_windjack'));
+    if (uvIndex > 3) items.push(t('clothing_add_sunscreen'));
+    if (uvIndex > 4) items.push(t('clothing_add_cap'));
+    items.push(t('clothing_add_id'));
+    return items;
+}
+
 function generateRecommendation(current, dewPoint, uvIndex = 0) {
     const temp = current.temperature_2m;
     const feelsLike = current.apparent_temperature;
@@ -375,6 +397,9 @@ function generateRecommendation(current, dewPoint, uvIndex = 0) {
     const redIssues = issues.filter(i => i.score === 3);
     const secondaryIssues = issues.filter(i => i.score < 3);
 
+    const clothingItems = buildClothingItems(temp, bft, uvIndex);
+    const clothingHTML = `<strong>${t('clothing_title')}</strong><ul class="clothing-list">${clothingItems.map(i => `<li>${i}</li>`).join('')}</ul>`;
+
     let badge, type, tip;
 
     if (maxScore >= 3) {
@@ -383,32 +408,22 @@ function generateRecommendation(current, dewPoint, uvIndex = 0) {
         const hasCold = redIssues.some(i => i.msg.includes('🥶'));
         const hasWind = redIssues.some(i => i.msg.includes('💨'));
         const suggestion = hasCold ? t('suggest_cold') : hasWind ? t('suggest_wind') : t('suggest_heat');
-        tip = `<strong>${t('rec_not_now')}</strong><br>${redIssues.map(i => i.msg).join('<br>')}<br><br><em>${suggestion}</em>`;
+        tip = `<strong>${t('rec_not_now')}</strong><br>${redIssues.map(i => i.msg).join('<br>')}<br><em>${suggestion}</em><br><br>${clothingHTML}`;
     } else if (maxScore === 2) {
         badge = t('rec_orange');
         type = 'caution';
-        tip = `<strong>${t('rec_be_careful')}</strong><br>${issues.filter(i => i.score >= 2).map(i => i.msg).join('<br>')}`;
+        tip = `<strong>${t('rec_be_careful')}</strong><br>${issues.filter(i => i.score >= 2).map(i => i.msg).join('<br>')}<br><br>${clothingHTML}`;
     } else if (maxScore === 1) {
         badge = t('rec_yellow');
         type = 'warning';
-        tip = `<strong>${t('rec_not_perfect')}</strong><br>${issues.map(i => i.msg).join('<br>')}`;
+        tip = `<strong>${t('rec_not_perfect')}</strong><br>${issues.map(i => i.msg).join('<br>')}<br><br>${clothingHTML}`;
     } else {
         if (temp < 0)        badge = t('rec_green_freezing');
         else if (temp <= 7)  badge = t('rec_green_cold');
         else if (temp <= 22) badge = t('rec_green_mild');
         else                 badge = t('rec_green_warm');
         type = 'success';
-
-        const title = `<strong>${t('clothing_title')}</strong><br>`;
-        if (temp < 0) {
-            tip = title + t('clothing_cold');
-        } else if (temp <= 7) {
-            tip = title + t('clothing_cool') + (bft >= 4 ? t('clothing_cool_windy') : t('clothing_cool_calm'));
-        } else if (temp <= 14) {
-            tip = title + t('clothing_mild');
-        } else {
-            tip = title + (uvIndex >= 3 ? t('clothing_warm_uv') : t('clothing_warm'));
-        }
+        tip = clothingHTML;
     }
 
     if (els.recommendationBadge) {

@@ -338,6 +338,30 @@ header {
     font-size: 1rem;
 }
 
+.clothing-list {
+    list-style: none;
+    margin-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.clothing-list li {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 0.95rem;
+}
+
+.clothing-list li::before {
+    content: '·';
+    color: var(--accent-color);
+    font-size: 1.3em;
+    font-weight: 700;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
 .warnings {
     margin-top: 16px;
     padding: 16px;
