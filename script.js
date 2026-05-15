@@ -955,7 +955,8 @@ function renderUVChart(hourly, daily) {
             const minsAgo = (108 - b) * 15;
             const measureMin = nowMinutes - minsAgo;
             if (measureMin < 0) continue;
-            const hour = Math.round(measureMin / 60);
+            // Math.floor matches locationHour() — avoids measurements landing in the wrong bucket
+            const hour = Math.floor(measureMin / 60);
             if (hour < 0 || hour > 23) continue;
             rivmFull[hour] = rivmFull[hour] === null
                 ? val
@@ -963,17 +964,23 @@ function renderUVChart(hourly, daily) {
             bucketCount[hour]++;
         }
 
-        // Sync the displayed current value with what the chart shows at the current hour
-        const rivmNow = rivmFull[currentHour];
-        if (rivmNow !== null && rivmNow > 0 && currentEl) {
-            currentEl.innerText = rivmNow.toFixed(1);
-            currentEl.title = t('rivm_measured');
+        const rivmSliced = rivmFull.slice(startHour, endHour + 1);
+        if (!rivmSliced.some(v => v !== null)) return;
+
+        // Show the most recent RIVM value at or before the current position —
+        // walks back so the number always matches the latest visible chart dot
+        if (currentEl) {
+            const maxIdx = Math.min(currentHourInSlice, rivmSliced.length - 1);
+            for (let i = maxIdx; i >= 0; i--) {
+                if (rivmSliced[i] !== null) {
+                    currentEl.innerText = rivmSliced[i].toFixed(1);
+                    currentEl.title = t('rivm_measured');
+                    break;
+                }
+            }
         }
 
-        const rivmSliced = rivmFull.slice(startHour, endHour + 1);
-        if (rivmSliced.some(v => v !== null)) {
-            drawUVChart(canvas, uvInfo, labels, predicted, rivmSliced);
-        }
+        drawUVChart(canvas, uvInfo, labels, predicted, rivmSliced);
     });
 }
 
