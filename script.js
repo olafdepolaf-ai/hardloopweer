@@ -1,3 +1,37 @@
+function detectLanguage() {
+    const supported = Object.keys(STRINGS);
+    const saved = localStorage.getItem('hw_lang');
+    if (saved && supported.includes(saved)) return saved;
+    const browser = (navigator.language || 'nl').split('-')[0].toLowerCase();
+    return supported.includes(browser) ? browser : 'nl';
+}
+
+function t(key, params = {}) {
+    const lang = state?.lang || 'nl';
+    const s = STRINGS[lang]?.[key] ?? STRINGS['nl']?.[key] ?? key;
+    return typeof s === 'string'
+        ? s.replace(/{(\w+)}/g, (_, k) => String(params[k] ?? ''))
+        : key;
+}
+
+function applyTranslations() {
+    document.documentElement.lang = state.lang;
+    document.title = t('page_title');
+    const metaDesc = document.querySelector('meta[name="description"]');
+    if (metaDesc) metaDesc.setAttribute('content', t('page_desc'));
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.dataset.i18n);
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        el.placeholder = t(el.dataset.i18nPlaceholder);
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        el.title = t(el.dataset.i18nTitle);
+    });
+    const langSelect = document.getElementById('lang-select');
+    if (langSelect) langSelect.value = state.lang;
+}
+
 const CONFIG = {
     API_URL: 'https://api.open-meteo.com/v1/forecast',
     GEO_API_URL: 'https://geocoding-api.open-meteo.com/v1/search',
@@ -34,8 +68,25 @@ let state = {
     lon: CONFIG.DEFAULT_LON,
     city: CONFIG.DEFAULT_CITY,
     chart: null,
-    uvChart: null
+    uvChart: null,
+    utcOffsetSeconds: 3600,
+    timezone: 'Europe/Amsterdam',
+    lang: detectLanguage()
 };
+
+// Current hour at the searched location (not device local time)
+function locationHour() {
+    return Math.floor((Date.now() / 1000 + state.utcOffsetSeconds) / 3600) % 24;
+}
+
+// Local ISO timestamp at searched location, for comparing with API hourly.time strings
+function locationISO() {
+    return new Date(Date.now() + state.utcOffsetSeconds * 1000).toISOString().replace('Z', '');
+}
+
+function isInNetherlands() {
+    return state.lat >= 50.5 && state.lat <= 53.7 && state.lon >= 3.3 && state.lon <= 7.3;
+}
 
 function onLocationGranted() {
     els.searchContainer?.classList.add('collapsed');
@@ -44,9 +95,21 @@ function onLocationGranted() {
 }
 
 async function init() {
+    applyTranslations();
     updateTime();
     setInterval(updateTime, 10000);
     updateBuienradar();
+
+    document.getElementById('lang-select')?.addEventListener('change', (e) => {
+        state.lang = e.target.value;
+        localStorage.setItem('hw_lang', state.lang);
+        applyTranslations();
+        if (state.uvChart) {
+            state.uvChart.data.datasets[0].label = t('uv_label_predicted');
+            state.uvChart.data.datasets[1].label = t('uv_label_measured');
+            state.uvChart.update();
+        }
+    });
 
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
@@ -92,8 +155,10 @@ async function init() {
 
 function updateTime() {
     if (!els.currentTime) return;
-    const now = new Date();
-    els.currentTime.innerText = now.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+    els.currentTime.innerText = new Date().toLocaleTimeString('nl-NL', {
+        hour: '2-digit', minute: '2-digit',
+        timeZone: state.timezone
+    });
 }
 
 function updateBuienradar() {
@@ -128,11 +193,11 @@ async function reverseGeocode(lat, lon) {
     try {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
         const data = await res.json();
-        state.city = data.address.city || data.address.town || data.address.village || "Jouw plekje";
+        state.city = data.address.city || data.address.town || data.address.village || t('geocode_here');
         els.cityName.innerText = state.city;
         updateBuienradar();
     } catch (err) {
-        els.cityName.innerText = "Ergens op de wereld";
+        els.cityName.innerText = t('geocode_unknown');
     }
 }
 
@@ -174,6 +239,10 @@ function getBeaufort(kmh) {
 function updateUI(data) {
     const current = data.current;
 
+    // Store location timezone from API so time calculations use the searched city's local time
+    if (data.utc_offset_seconds !== undefined) state.utcOffsetSeconds = data.utc_offset_seconds;
+    if (data.timezone) state.timezone = data.timezone;
+
     els.currentTemp.innerText = `${Math.round(current.temperature_2m)}°`;
     if (els.feelsLike) els.feelsLike.innerText = `${Math.round(current.apparent_temperature)}°`;
     if (els.humidity) els.humidity.innerText = `${Math.round(current.relative_humidity_2m)}%`;
@@ -184,7 +253,11 @@ function updateUI(data) {
         els.windArrow.style.transform = `rotate(${current.wind_direction_10m}deg)`;
     }
 
-    const hourIdx = new Date().getHours();
+    // Show Buienradar only when viewing a Dutch location
+    const buienradarSection = document.getElementById('buienradar-section');
+    if (buienradarSection) buienradarSection.classList.toggle('hidden', !isInNetherlands());
+
+    const hourIdx = locationHour();
     const dp = data.hourly.dew_point_2m[hourIdx];
     if (els.dewPoint) els.dewPoint.innerText = `${Math.round(dp)}°`;
 
@@ -197,7 +270,8 @@ function updateUI(data) {
     if (window.lucide) lucide.createIcons();
 
     updateComfortLevel(dp, current.temperature_2m);
-    generateRecommendation(current, dp);
+    const currentUV = data.hourly.uv_index?.[hourIdx] ?? 0;
+    generateRecommendation(current, dp, currentUV);
     renderChart(data.hourly);
     renderUVChart(data.hourly);
 }
@@ -214,45 +288,25 @@ function updateComfortLevel(dewPoint, temp) {
     let adjustment = "";
 
     if (sum <= 100) {
-        level = "Perfect: gaan met die banaan!";
-        cssClass = "very-comfortable";
-        adjustment = "Lekker knallen op volle snelheid!";
+        level = t('comfort_perfect');  cssClass = "very-comfortable"; adjustment = t('comfort_adj_perfect');
     } else if (sum <= 110) {
-        level = "Prima renweertje";
-        cssClass = "comfortable";
-        adjustment = "Tempo: 0% - 0.5% langzamer";
+        level = t('comfort_good');     cssClass = "comfortable";      adjustment = t('comfort_adj_good');
     } else if (sum <= 120) {
-        level = "Beetje klammig hoor";
-        cssClass = "humid";
-        adjustment = "Tempo: 0.5% - 1.0% langzamer";
+        level = t('comfort_sticky');   cssClass = "humid";            adjustment = t('comfort_adj_sticky');
     } else if (sum <= 130) {
-        level = "Lekker warmpjes!";
-        cssClass = "uncomfortable";
-        adjustment = "Tempo: 1.0% - 2.0% langzamer";
+        level = t('comfort_warm');     cssClass = "uncomfortable";    adjustment = t('comfort_adj_warm');
     } else if (sum <= 140) {
-        level = "Plakkerig!";
-        cssClass = "uncomfortable";
-        adjustment = "Tempo: 2.0% - 3.0% langzamer";
+        level = t('comfort_tacky');    cssClass = "uncomfortable";    adjustment = t('comfort_adj_tacky');
     } else if (sum <= 150) {
-        level = "Pittig hoor, rustig aan!";
-        cssClass = "oppressive";
-        adjustment = "Tempo: 3.0% - 4.5% langzamer";
+        level = t('comfort_tough');    cssClass = "oppressive";       adjustment = t('comfort_adj_tough');
     } else if (sum <= 160) {
-        level = "Zwaar hoor, pas op jezelf";
-        cssClass = "oppressive";
-        adjustment = "Tempo: 4.5% - 6.0% langzamer";
+        level = t('comfort_heavy');    cssClass = "oppressive";       adjustment = t('comfort_adj_heavy');
     } else if (sum <= 170) {
-        level = "Poeh, echt afzien dit!";
-        cssClass = "oppressive";
-        adjustment = "Tempo: 6.0% - 8.0% langzamer";
+        level = t('comfort_suffer');   cssClass = "oppressive";       adjustment = t('comfort_adj_suffer');
     } else if (sum <= 180) {
-        level = "Extreem! Blijf drinken!";
-        cssClass = "oppressive";
-        adjustment = "Tempo: 8.0% - 10.0% langzamer";
+        level = t('comfort_extreme');  cssClass = "oppressive";       adjustment = t('comfort_adj_extreme');
     } else {
-        level = "Niet doen! Veel te risicovol";
-        cssClass = "oppressive";
-        adjustment = "Stop met rennen, zoek de schaduw!";
+        level = t('comfort_stop');     cssClass = "oppressive";       adjustment = t('comfort_adj_stop');
     }
 
     if (els.comfortLevel) {
@@ -262,51 +316,100 @@ function updateComfortLevel(dewPoint, temp) {
 }
 
 function getWeatherDesc(code) {
-    const codes = {
-        0: { desc: "Strakblauwe lucht, heerlijk!", icon: "☀️", lucide: "sun" },
-        1: { desc: "Appeltje-eitje zonnetje", icon: "🌤️", lucide: "sun" },
-        2: { desc: "Wat wolkjes, prima zo", icon: "⛅", lucide: "cloud" },
-        3: { desc: "Helemaal grijs, maar ach", icon: "☁️", lucide: "cloud" },
-        45: { desc: "Mist! Pas op de paaltjes", icon: "🌫️", lucide: "cloud" },
-        51: { desc: "Miezeren, word je hard van!", icon: "🌦️", lucide: "cloud-drizzle" },
-        61: { desc: "Regen! Gratis verfrissing", icon: "🌧️", lucide: "cloud-rain" },
-        71: { desc: "Sneeuw! Pas op voor de gladheid", icon: "❄️", lucide: "snowflake" },
-        95: { desc: "Onweer! Blijf maar lekker binnen", icon: "⛈️", lucide: "cloud-lightning" }
+    const map = {
+        0:  { key: 'weather_0',  icon: "☀️",  lucide: "sun" },
+        1:  { key: 'weather_1',  icon: "🌤️", lucide: "sun" },
+        2:  { key: 'weather_2',  icon: "⛅",  lucide: "cloud" },
+        3:  { key: 'weather_3',  icon: "☁️",  lucide: "cloud" },
+        45: { key: 'weather_45', icon: "🌫️", lucide: "cloud" },
+        51: { key: 'weather_51', icon: "🌦️", lucide: "cloud-drizzle" },
+        61: { key: 'weather_61', icon: "🌧️", lucide: "cloud-rain" },
+        71: { key: 'weather_71', icon: "❄️",  lucide: "snowflake" },
+        95: { key: 'weather_95', icon: "⛈️",  lucide: "cloud-lightning" }
     };
-    return codes[code] || { desc: "Vreemd weertje vandaag", icon: "🌡️", lucide: "thermometer" };
+    const entry = map[code] || { key: 'weather_default', icon: "🌡️", lucide: "thermometer" };
+    return { desc: t(entry.key), icon: entry.icon, lucide: entry.lucide };
 }
 
-function generateRecommendation(current, dewPoint) {
+function generateRecommendation(current, dewPoint, uvIndex = 0) {
     const temp = current.temperature_2m;
     const feelsLike = current.apparent_temperature;
-    const wind = current.wind_speed_10m;
-    const bft = getBeaufort(wind);
+    const bft = getBeaufort(current.wind_speed_10m);
+    const hour = locationHour();
 
-    let badge = "Gaan met die banaan!";
-    let type = "success";
-    let tip = "";
+    const issues = [];
+    function flag(score, msg) { issues.push({ score, msg }); }
 
-    if (temp < 0) {
-        badge = "Brrr, ijskoud!";
-        type = "warning";
-        tip = "<strong>Wat trekken we aan?</strong><br>Onder de 0°C zijn we geen helden: lange broek (tights) is een must! Trek ook een lekker jasje, een muts en handschoentjes aan.";
-    } else if (temp >= 0 && temp <= 7) {
-        badge = "Lekker frisjes hoor!";
-        type = "success";
-        tip = "<strong>Wat trekken we aan?</strong><br>Korte broek kan prima tot 0 graden voor de bikkels! Maar gooi er wel een jasje overheen.";
-        if (feelsLike < 0 || bft >= 4) {
-            tip += " Door die gure wind die snijdt zijn handschoentjes misschien toch een goed idee voor je vingertoppen.";
-        }
-    } else {
-        badge = "Heerlijk renweertje!";
-        type = "success";
-        tip = "<strong>Wat trekken we aan?</strong><br>Boven de 7 graden is het T-shirt weer! Korte broek aan en vlammen maar.";
+    const dp = Math.round(dewPoint);
+    const fl = Math.round(feelsLike);
+    const uv = uvIndex.toFixed(1);
+
+    // Dew point
+    if (dewPoint > 21)      flag(3, t('warn_dew_extreme',    { temp: dp }));
+    else if (dewPoint > 18) flag(2, t('warn_dew_high',       { temp: dp }));
+    else if (dewPoint > 13) flag(1, t('warn_dew_moderate',   { temp: dp }));
+
+    // Feels-like temperature
+    if (feelsLike > 35)       flag(3, t('warn_feels_very_hot',  { temp: fl }));
+    else if (feelsLike > 30)  flag(2, t('warn_feels_hot',       { temp: fl }));
+    else if (feelsLike > 25)  flag(1, t('warn_feels_warm',      { temp: fl }));
+    else if (feelsLike < -20) flag(3, t('warn_feels_very_cold', { temp: fl }));
+    else if (feelsLike < -15) flag(2, t('warn_feels_cold',      { temp: fl }));
+    else if (feelsLike < -10) flag(1, t('warn_feels_cool',      { temp: fl }));
+
+    // UV index (peak exposure 10:00–16:00)
+    if (hour >= 10 && hour < 16) {
+        if (uvIndex >= 8)      flag(3, t('warn_uv_extreme',  { uv }));
+        else if (uvIndex >= 6) flag(2, t('warn_uv_high',     { uv }));
+        else if (uvIndex >= 5) flag(1, t('warn_uv_moderate', { uv }));
+    } else if (uvIndex >= 8) {
+        flag(1, t('warn_uv_low', { uv }));
     }
 
-    let warnings = [];
-    if (bft >= 6) warnings.push("💨 Oei, flinke wind (6+ Bft)! Blijf uit de buurt van krakende takken.");
-    if (temp > 25) warnings.push("🔥 Heet hoor! Drink genoeg water, anders droog je uit.");
-    if (dewPoint > 18) warnings.push("💦 Pfff, wat een luchtvochtigheid. Rustig aan doen!");
+    // Wind
+    if (bft >= 9)      flag(3, t('warn_wind_storm',    { bft }));
+    else if (bft >= 7) flag(2, t('warn_wind_strong',   { bft }));
+    else if (bft >= 6) flag(1, t('warn_wind_moderate', { bft }));
+
+    const maxScore = issues.length ? Math.max(...issues.map(i => i.score)) : 0;
+    const redIssues = issues.filter(i => i.score === 3);
+    const secondaryIssues = issues.filter(i => i.score < 3);
+
+    let badge, type, tip;
+
+    if (maxScore >= 3) {
+        badge = t('rec_red');
+        type = 'danger';
+        const hasCold = redIssues.some(i => i.msg.includes('🥶'));
+        const hasWind = redIssues.some(i => i.msg.includes('💨'));
+        const suggestion = hasCold ? t('suggest_cold') : hasWind ? t('suggest_wind') : t('suggest_heat');
+        tip = `<strong>${t('rec_not_now')}</strong><br>${redIssues.map(i => i.msg).join('<br>')}<br><br><em>${suggestion}</em>`;
+    } else if (maxScore === 2) {
+        badge = t('rec_orange');
+        type = 'caution';
+        tip = `<strong>${t('rec_be_careful')}</strong><br>${issues.filter(i => i.score >= 2).map(i => i.msg).join('<br>')}`;
+    } else if (maxScore === 1) {
+        badge = t('rec_yellow');
+        type = 'warning';
+        tip = `<strong>${t('rec_not_perfect')}</strong><br>${issues.map(i => i.msg).join('<br>')}`;
+    } else {
+        if (temp < 0)        badge = t('rec_green_freezing');
+        else if (temp <= 7)  badge = t('rec_green_cold');
+        else if (temp <= 22) badge = t('rec_green_mild');
+        else                 badge = t('rec_green_warm');
+        type = 'success';
+
+        const title = `<strong>${t('clothing_title')}</strong><br>`;
+        if (temp < 0) {
+            tip = title + t('clothing_cold');
+        } else if (temp <= 7) {
+            tip = title + t('clothing_cool') + (bft >= 4 ? t('clothing_cool_windy') : t('clothing_cool_calm'));
+        } else if (temp <= 14) {
+            tip = title + t('clothing_mild');
+        } else {
+            tip = title + (uvIndex >= 3 ? t('clothing_warm_uv') : t('clothing_warm'));
+        }
+    }
 
     if (els.recommendationBadge) {
         els.recommendationBadge.innerText = badge;
@@ -315,8 +418,11 @@ function generateRecommendation(current, dewPoint) {
     if (els.clothingTip) els.clothingTip.innerHTML = `<p>${tip}</p>`;
 
     if (els.warnings) {
-        if (warnings.length > 0) {
-            els.warnings.innerHTML = warnings.join('<br>');
+        const showWarnings = maxScore >= 3 && secondaryIssues.length > 0
+            ? secondaryIssues.map(i => i.msg)
+            : [];
+        if (showWarnings.length > 0) {
+            els.warnings.innerHTML = `<strong>${t('rec_also')}</strong> ` + showWarnings.join(' · ');
             els.warnings.classList.remove('hidden');
         } else {
             els.warnings.classList.add('hidden');
@@ -328,7 +434,7 @@ function renderChart(hourly) {
     const canvas = document.getElementById('temp-chart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const nowISO = new Date().toISOString().substring(0, 14) + '00';
+    const nowISO = locationISO().substring(0, 14) + '00';
     let startIndex = hourly.time.findIndex(t => t >= nowISO);
     if (startIndex === -1) startIndex = 0;
 
@@ -405,6 +511,39 @@ function renderChart(hourly) {
 
 // ---- UV / Zonkracht ----
 
+const UV_ZONES = [
+    { min: 0, max: 3,        color: '#57BB8A' },
+    { min: 3, max: 5,        color: '#F9AB00' },
+    { min: 5, max: 7,        color: '#F57C00' },
+    { min: 7, max: Infinity, color: '#D93025' }
+];
+
+function uvZoneColor(v) {
+    if (v < 3) return '#57BB8A';
+    if (v < 5) return '#F9AB00';
+    if (v < 7) return '#F57C00';
+    return '#D93025';
+}
+
+const uvBandPlugin = {
+    id: 'uvBands',
+    beforeDraw(chart) {
+        const { ctx, chartArea: { left, right, top, bottom }, scales: { y } } = chart;
+        [
+            { yMin: 0, yMax: 3,        color: '#57BB8A14' },
+            { yMin: 3, yMax: 5,        color: '#F9AB0014' },
+            { yMin: 5, yMax: 7,        color: '#F57C0014' },
+            { yMin: 7, yMax: y.max,    color: '#D9302514' }
+        ].forEach(({ yMin, yMax, color }) => {
+            const yTop = y.getPixelForValue(Math.min(yMax, y.max));
+            const yBot = y.getPixelForValue(Math.max(yMin, y.min));
+            if (yTop >= bottom || yBot <= top) return;
+            ctx.fillStyle = color;
+            ctx.fillRect(left, Math.max(yTop, top), right - left, Math.min(yBot, bottom) - Math.max(yTop, top));
+        });
+    }
+};
+
 function wgs84ToRD(lat, lon) {
     const dφ = 0.36 * (lat - 52.15517440);
     const dλ = 0.36 * (lon - 5.38720621);
@@ -442,30 +581,29 @@ async function fetchRIVMUV() {
 }
 
 function getUVLevel(uv) {
-    if (uv < 1)  return { label: 'Geen',      cls: 'uv-none',      color: '#9E9E9E', tip: 'Geen UV-bescherming nodig voor je run.' };
-    if (uv < 3)  return { label: 'Laag',      cls: 'uv-low',       color: '#57BB8A', tip: 'Weinig risico. Bij langdurig lopen wel smeren.' };
-    if (uv < 6)  return { label: 'Matig',     cls: 'uv-moderate',  color: '#F9AB00', tip: 'Factor 15+ en zonnebril mee. Petje op!' };
-    if (uv < 8)  return { label: 'Hoog',      cls: 'uv-high',      color: '#F57C00', tip: 'Factor 30+ en pet. Loop voor 10u of na 16u.' };
-    if (uv < 11) return { label: 'Zeer hoog', cls: 'uv-very-high', color: '#D93025', tip: 'Factor 50+. Loop vroeg of laat, niet tussen 11–15u.' };
-    return         { label: 'Extreem',         cls: 'uv-extreme',   color: '#7B1FA2', tip: 'Niet hardlopen in de middagzon!' };
+    if (uv < 1) return { label: t('uv_none'),     cls: 'uv-none',      color: '#9E9E9E', tip: t('uv_tip_none') };
+    if (uv < 3) return { label: t('uv_low'),      cls: 'uv-low',       color: '#57BB8A', tip: t('uv_tip_low') };
+    if (uv < 5) return { label: t('uv_moderate'), cls: 'uv-moderate',  color: '#F9AB00', tip: t('uv_tip_moderate') };
+    if (uv < 7) return { label: t('uv_high'),     cls: 'uv-high',      color: '#F57C00', tip: t('uv_tip_high') };
+    return       { label: t('uv_very_high'),       cls: 'uv-very-high', color: '#D93025', tip: t('uv_tip_very_high') };
 }
 
 function renderUVChart(hourly) {
     const canvas = document.getElementById('uv-chart');
     if (!canvas) return;
 
-    const today = new Date().toISOString().substring(0, 10);
+    const today = locationISO().substring(0, 10);
     const todayStart = hourly.time.findIndex(t => t.startsWith(today));
     if (todayStart === -1) return;
 
     const labels = [];
     const predicted = [];
     for (let i = todayStart; i < todayStart + 24 && i < hourly.time.length; i++) {
-        labels.push(new Date(hourly.time[i]).getHours() + ':00');
+        labels.push(hourly.time[i].substring(11, 16));
         predicted.push(hourly.uv_index[i] ?? 0);
     }
 
-    const currentHour = new Date().getHours();
+    const currentHour = locationHour();
     const maxUV = Math.max(...predicted);
     const uvInfo = getUVLevel(maxUV);
 
@@ -489,7 +627,7 @@ function renderUVChart(hourly) {
 
         if (rivm.Band1 > 0 && currentEl) {
             currentEl.innerText = rivm.Band1.toFixed(1);
-            currentEl.title = 'Gemeten door RIVM';
+            currentEl.title = t('rivm_measured');
         }
 
         // Bands 82-108 zijn meetwaarden: Band108 = nu, elke stap terug = 15 min
@@ -521,11 +659,9 @@ function renderUVChart(hourly) {
 
 function drawUVChart(canvas, uvInfo, labels, predicted, measured, currentHour) {
     const ctx = canvas.getContext('2d');
-    const grad = ctx.createLinearGradient(0, 0, 0, canvas.offsetHeight || 180);
-    grad.addColorStop(0, uvInfo.color + '30');
-    grad.addColorStop(1, uvInfo.color + '05');
-
     if (state.uvChart) state.uvChart.destroy();
+
+    const maxPredicted = Math.max(...predicted.filter(v => v !== null && v > 0), 0);
 
     state.uvChart = new Chart(ctx, {
         type: 'line',
@@ -533,29 +669,35 @@ function drawUVChart(canvas, uvInfo, labels, predicted, measured, currentHour) {
             labels,
             datasets: [
                 {
-                    label: 'Verwacht',
+                    label: t('uv_label_predicted'),
                     data: predicted,
                     borderColor: uvInfo.color + '66',
-                    backgroundColor: grad,
-                    fill: true,
+                    backgroundColor: 'transparent',
+                    fill: false,
                     tension: 0.4,
                     pointRadius: 0,
                     borderWidth: 2,
-                    borderDash: [6, 4]
+                    borderDash: [6, 4],
+                    segment: {
+                        borderColor: c => uvZoneColor(c.p1.parsed.y) + '88'
+                    }
                 },
                 {
-                    label: 'Gemeten',
+                    label: t('uv_label_measured'),
                     data: measured,
                     borderColor: uvInfo.color,
                     backgroundColor: 'transparent',
                     fill: false,
                     tension: 0.15,
                     pointRadius: measured.map(v => v !== null ? 3.5 : 0),
-                    pointBackgroundColor: uvInfo.color,
+                    pointBackgroundColor: measured.map(v => v !== null ? uvZoneColor(v) : 'transparent'),
                     pointBorderColor: '#fff',
                     pointBorderWidth: 1.5,
                     borderWidth: 2.5,
-                    spanGaps: false
+                    spanGaps: false,
+                    segment: {
+                        borderColor: c => uvZoneColor(c.p1.parsed.y)
+                    }
                 }
             ]
         },
@@ -594,12 +736,13 @@ function drawUVChart(canvas, uvInfo, labels, predicted, measured, currentHour) {
                 },
                 y: {
                     min: 0,
-                    suggestedMax: Math.max(Math.max(...predicted) + 0.5, 3),
+                    suggestedMax: Math.max(maxPredicted + 1, 7),
                     grid: { color: 'rgba(0,0,0,0.05)' },
                     ticks: { font: { size: 11 } }
                 }
             }
-        }
+        },
+        plugins: [uvBandPlugin]
     });
 }
 

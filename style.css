@@ -320,6 +320,11 @@ header {
     color: var(--warning-color);
 }
 
+.badge.caution {
+    background: #feefe3;
+    color: #e37400;
+}
+
 .badge.danger {
     background: #fce8e6;
     color: var(--danger-color);
@@ -504,6 +509,59 @@ header {
 
 .hidden {
     display: none !important;
+}
+
+.lang-selector {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 16px;
+}
+
+.lang-select {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    color: #fff;
+    border-radius: 20px;
+    padding: 5px 32px 5px 14px;
+    font-size: 0.85rem;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.6)'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.lang-select:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.45);
+}
+
+.lang-select option {
+    background: #1a3a6b;
+    color: #fff;
+}
+
+.bmc-btn {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 0.82rem;
+    font-family: inherit;
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+    margin-bottom: 12px;
+}
+
+.bmc-btn:hover {
+    background: rgba(255, 255, 255, 0.22);
+    color: #fff;
 }
 
 footer {

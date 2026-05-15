@@ -30,6 +30,7 @@
     <meta name="twitter:image" content="https://hardloopweer.olaflemmers.nl/logo.png">
 
     <link rel="stylesheet" href="style.css">
+    <script src="i18n.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -41,13 +42,13 @@
             <div class="header-main">
                 <img src="logo.png" alt="Hardloopweer Logo" class="logo">
                 <h1>Hardloopweer</h1>
-                <button id="search-toggle" class="search-toggle hidden" title="Zoeken">
+                <button id="search-toggle" class="search-toggle hidden" data-i18n-title="btn_search" title="Zoeken">
                     <i data-lucide="search"></i>
                 </button>
             </div>
             <div id="search-container" class="search-container">
-                <input type="text" id="city-search" placeholder="Stad zoeken..." autocomplete="off">
-                <button id="location-btn" title="Gebruik huidige locatie">
+                <input type="text" id="city-search" data-i18n-placeholder="search_placeholder" placeholder="Stad zoeken..." autocomplete="off">
+                <button id="location-btn" data-i18n-title="btn_my_location" title="Gebruik huidige locatie">
                     <svg viewBox="0 0 24 24" width="24" height="24">
                         <path fill="currentColor"
                             d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.06 3.52 6.37 3.06 10.54H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z" />
@@ -76,22 +77,22 @@
                             </div>
                             <div class="weather-metrics">
                                 <div class="metric-item">
-                                    <span class="label">Gevoel</span>
+                                    <span class="label" data-i18n="label_feels">Gevoel</span>
                                     <span id="feels-like" class="value">--°</span>
                                 </div>
                                 <div class="metric-item">
-                                    <span class="label">Wind</span>
+                                    <span class="label" data-i18n="label_wind">Wind</span>
                                     <div class="wind-display">
                                         <span id="wind-force" class="value">-- Bft</span>
                                         <i id="wind-arrow" data-lucide="arrow-up" class="wind-arrow"></i>
                                     </div>
                                 </div>
                                 <div class="metric-item">
-                                    <span class="label">Vochtig</span>
+                                    <span class="label" data-i18n="label_humidity">Vochtig</span>
                                     <span id="humidity" class="value">--%</span>
                                 </div>
                                 <div class="metric-item">
-                                    <span class="label">Dauw</span>
+                                    <span class="label" data-i18n="label_dew">Dauw</span>
                                     <span id="dew-point" class="value">--°</span>
                                 </div>
                             </div>
@@ -105,10 +106,10 @@
             </div>
 
             <section id="running-recommendation" class="card highlight">
-                <h2>Mag ik al rennen?</h2>
+                <h2 data-i18n="section_running">Mag ik al rennen?</h2>
                 <div id="recommendation-badge" class="badge">--</div>
                 <div id="clothing-tip" class="tip-content">
-                    <p>Weer ophalen voor advies...</p>
+                    <p id="loading-text" data-i18n="loading">Weer ophalen voor advies...</p>
                 </div>
                 <div id="weather-warnings" class="warnings hidden">
                     <!-- Waarschuwingen hier -->
@@ -116,17 +117,17 @@
             </section>
 
             <section id="uv-section" class="card">
-                <h3>Zonkracht</h3>
+                <h3 data-i18n="section_uv">Zonkracht</h3>
                 <div class="uv-stats">
                     <div class="uv-stat">
-                        <span class="uv-stat-label">Nu</span>
+                        <span class="uv-stat-label" data-i18n="uv_now">Nu</span>
                         <span id="uv-current" class="uv-stat-value">--</span>
                     </div>
                     <div id="uv-badge-container" class="uv-badge-container">
                         <span id="uv-level" class="uv-badge">--</span>
                     </div>
                     <div class="uv-stat">
-                        <span class="uv-stat-label">Max vandaag</span>
+                        <span class="uv-stat-label" data-i18n="uv_max">Max vandaag</span>
                         <span id="uv-max" class="uv-stat-value">--</span>
                     </div>
                 </div>
@@ -137,10 +138,10 @@
             </section>
 
             <section id="forecast-mini" class="card">
-                <h3>Temperatuur & Regen</h3>
+                <h3 data-i18n="section_forecast">Temperatuur & Regen</h3>
                 <div class="chart-legend">
-                    <div class="legend-item"><span class="dot temp"></span> Temperatuur (°C)</div>
-                    <div class="legend-item"><span class="dot rain"></span> Regen (mm)</div>
+                    <div class="legend-item"><span class="dot temp"></span> <span data-i18n="legend_temp">Temperatuur (°C)</span></div>
+                    <div class="legend-item"><span class="dot rain"></span> <span data-i18n="legend_rain">Regen (mm)</span></div>
                 </div>
                 <div class="chart-scroll-wrapper">
                     <div class="chart-container">
@@ -150,7 +151,7 @@
             </section>
 
             <section id="buienradar-section" class="card">
-                <h3>Regenradar</h3>
+                <h3 data-i18n="section_radar">Regenradar</h3>
                 <div class="buienradar-container">
                     <iframe id="buienradar-frame"
                         src=""
@@ -159,11 +160,20 @@
                         allowfullscreen
                         title="Buienradar regenradar"></iframe>
                 </div>
-                <p class="buienradar-credit">Data: <a href="https://www.buienradar.nl" target="_blank" rel="noopener">Buienradar.nl</a></p>
+                <p class="buienradar-credit"><span data-i18n="radar_credit">Data:</span> <a href="https://www.buienradar.nl" target="_blank" rel="noopener">Buienradar.nl</a></p>
             </section>
         </main>
 
         <footer>
+            <div class="lang-selector">
+                <select id="lang-select" class="lang-select" aria-label="Language">
+                    <option value="nl">🇳🇱 Nederlands</option>
+                    <option value="en">🇬🇧 English</option>
+                    <option value="de">🇩🇪 Deutsch</option>
+                    <option value="fr">🇫🇷 Français</option>
+                    <option value="es">🇪🇸 Español</option>
+                </select>
+            </div>
             <div class="footer-links">
                 <a href="https://www.buienradar.nl" target="_blank" rel="noopener">Buienradar.nl</a>
                 <span class="footer-dot">·</span>
@@ -173,13 +183,16 @@
                 <span class="footer-dot">·</span>
                 <a href="https://github.com/olafdepolaf-ai/hardloopweer" target="_blank" rel="noopener">GitHub</a>
             </div>
+            <a href="https://buymeacoffee.com/olafdepolaf" target="_blank" rel="noopener" class="bmc-btn">
+                ☕ Buy me a coffee
+            </a>
             <div class="footer-made">
-                Made with
+                <span data-i18n="footer_made">Made with</span>
                 <svg class="amsterdam-heart" viewBox="0 0 100 100" aria-hidden="true">
                     <path d="M50 80 L10 40 Q0 20 20 10 Q40 0 50 20 Q60 0 80 10 Q100 20 90 40 Z" fill="currentColor"/>
                     <path d="M35 38 L50 53 L65 38" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
-                in Amsterdam by
+                <span data-i18n="footer_by">in Amsterdam by</span>
                 <a href="https://www.linkedin.com/in/olaflemmers/" target="_blank" rel="noopener">Olaf Lemmers</a>
             </div>
         </footer>
