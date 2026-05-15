@@ -867,10 +867,10 @@ function wgs84ToRD(lat, lon) {
 async function fetchRIVMUV() {
     try {
         const rd = wgs84ToRD(state.lat, state.lon);
-        const i = Math.round((rd.x + 150000) / 600000 * 900);
-        const j = Math.round((800000 - rd.y) / 700000 * 900);
-        if (i < 0 || i > 900 || j < 0 || j > 900) return null;
-        const url = `https://data.rivm.nl/geo/alo/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&QUERY_LAYERS=rivm_zonkracht&LAYERS=rivm_zonkracht&INFO_FORMAT=application/json&FEATURE_COUNT=1&I=${i}&J=${j}&CRS=EPSG:28992&WIDTH=900&HEIGHT=900&BBOX=-150000,100000,450000,800000`;
+        if (rd.x < 0 || rd.x > 300000 || rd.y < 300000 || rd.y > 650000) return null;
+        const I = Math.round(rd.x);
+        const J = Math.round(650000 - rd.y);
+        const url = `https://data.rivm.nl/geo/alo/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&QUERY_LAYERS=rivm_zonkracht&LAYERS=rivm_zonkracht&INFO_FORMAT=application/json&FEATURE_COUNT=1&I=${I}&J=${J}&CRS=EPSG:28992&WIDTH=300000&HEIGHT=350000&BBOX=0,300000,300000,650000`;
         const res = await fetch(url);
         const data = await res.json();
         if (data.features?.length > 0) return data.features[0].properties;
@@ -939,41 +939,34 @@ function renderUVChart(hourly, daily) {
     const measuredFallback = predicted.map((v, i) => i <= currentHourInSlice ? v : null);
     drawUVChart(canvas, uvInfo, labels, predicted, measuredFallback);
 
-    // Vervang gemeten curve door echte RIVM-meetwaarden als beschikbaar
     fetchRIVMUV().then(rivm => {
         if (!rivm) return;
 
-        // Bands 82-108 zijn meetwaarden: Band108 = nu, elke stap terug = 15 min
-        const now = new Date();
-        const nowMinutes = now.getHours() * 60 + now.getMinutes();
-        const rivmFull = new Array(24).fill(null);
-        const bucketCount = new Array(24).fill(0);
+        // Band(75+k) for k=1..72 = measured UV at UTC slot 03:00 + (k-1)*15min
+        // -1 means not yet measured; later k within an hour = more recent, keep that one
+        const utcOffsetMin = (state.utcOffsetSeconds || 0) / 60;
+        const rivmHourly = new Array(24).fill(null);
 
-        for (let b = 82; b <= 108; b++) {
-            const val = rivm['Band' + b];
-            if (!val || val < 0) continue;
-            const minsAgo = (108 - b) * 15;
-            const measureMin = nowMinutes - minsAgo;
-            if (measureMin < 0) continue;
-            // Math.floor matches locationHour() — avoids measurements landing in the wrong bucket
-            const hour = Math.floor(measureMin / 60);
-            if (hour < 0 || hour > 23) continue;
-            rivmFull[hour] = rivmFull[hour] === null
-                ? val
-                : (rivmFull[hour] * bucketCount[hour] + val) / (bucketCount[hour] + 1);
-            bucketCount[hour]++;
+        for (let k = 1; k <= 72; k++) {
+            const val = rivm['Band' + (75 + k)];
+            if (val === undefined || val === null || val < 0) continue;
+            const localMin = 180 + (k - 1) * 15 + utcOffsetMin;
+            const localHour = Math.floor(localMin / 60);
+            if (localHour < 0 || localHour > 23) continue;
+            rivmHourly[localHour] = val;
         }
 
-        const rivmSliced = rivmFull.slice(startHour, endHour + 1);
+        const rivmSliced = [];
+        for (let h = startHour; h <= endHour; h++) {
+            rivmSliced.push(rivmHourly[h]);
+        }
         if (!rivmSliced.some(v => v !== null)) return;
 
-        // Show the most recent RIVM value at or before the current position —
-        // walks back so the number always matches the latest visible chart dot
         if (currentEl) {
-            const maxIdx = Math.min(currentHourInSlice, rivmSliced.length - 1);
-            for (let i = maxIdx; i >= 0; i--) {
-                if (rivmSliced[i] !== null) {
-                    currentEl.innerText = rivmSliced[i].toFixed(1);
+            const curLocalHour = locationHour();
+            for (let h = curLocalHour; h >= 0; h--) {
+                if (rivmHourly[h] !== null) {
+                    currentEl.innerText = rivmHourly[h].toFixed(1);
                     currentEl.title = t('rivm_measured');
                     break;
                 }
