@@ -5,20 +5,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Hardloopweer - Is het een goede dag om te rennen?</title>
-    <meta name="description"
-        content="Check snel of het hardloopweer is in jouw stad. Krijg kledingadvies en bekijk de weersverwachting.">
-    <link rel="stylesheet" href="style.css">
+    <meta name="description" content="Check snel of het hardloopweer is in jouw stad. Temperatuur, regen, wind en kledingadvies in één oogopslag.">
+    <meta name="robots" content="index, follow">
+    <meta name="theme-color" content="#0047AB">
+    <link rel="canonical" href="https://hardloopweer.olaflemmers.nl/">
     <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="apple-touch-icon" href="favicon.png">
+
+    <!-- Open Graph (WhatsApp, Facebook, etc.) -->
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="nl_NL">
+    <meta property="og:url" content="https://hardloopweer.olaflemmers.nl/">
+    <meta property="og:title" content="Hardloopweer – Is het een goede dag om te rennen?">
+    <meta property="og:description" content="Check snel of het hardloopweer is in jouw stad. Temperatuur, regen, wind en kledingadvies in één oogopslag.">
+    <meta property="og:image" content="https://hardloopweer.olaflemmers.nl/logo.png">
+    <meta property="og:image:width" content="1024">
+    <meta property="og:image:height" content="1024">
+    <meta property="og:image:alt" content="Hardloopweer – weer-app voor hardlopers">
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Hardloopweer – Is het een goede dag om te rennen?">
+    <meta name="twitter:description" content="Check snel of het hardloopweer is in jouw stad. Temperatuur, regen, wind en kledingadvies in één oogopslag.">
+    <meta name="twitter:image" content="https://hardloopweer.olaflemmers.nl/logo.png">
+
+    <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="icon" href="favicon.ico">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
-    <div class="container--v3">
+    <div id="app" class="container--v3">
         <header>
             <div class="header-main">
                 <img src="logo.png" alt="Hardloopweer Logo" class="logo">
@@ -64,6 +82,10 @@
                                         <span id="wind-force" class="value">-- Bft</span>
                                         <i id="wind-arrow" data-lucide="arrow-up" class="wind-arrow"></i>
                                     </div>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="label">Vochtig</span>
+                                    <span id="humidity" class="value">--%</span>
                                 </div>
                                 <div class="metric-item">
                                     <span class="label">Dauw</span>
@@ -125,7 +147,7 @@
     </div>
     <div id="bg-overlay"></div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@0.511.0/dist/umd/lucide.js"></script>
     <script src="script.js"></script>
 </body>
 

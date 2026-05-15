@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+
+# VS Code (lokale instellingen)
+.vscode/
+
+# Claude Code (bevat machine-specifieke paden en permissies)
+.claude/
+
+# Environment variables
+.env
+.env.*
+
+# Node (voor het geval er ooit een build-stap komt)
+node_modules/

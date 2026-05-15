@@ -26,7 +26,7 @@
 }
 
 body {
-    font-family: 'Outfit', sans-serif;
+    font-family: 'Inter', sans-serif;
     background-color: var(--bg-color);
     color: var(--text-primary);
     min-height: 100vh;
@@ -61,7 +61,7 @@ header {
     margin: 0 auto;
 }
 
-#webcam-image {
+#webcam-img {
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -153,21 +153,12 @@ header {
     /* Ensuring it's white */
 }
 
-/* Weather Hero Reorganization */
-.hero-content {
-    display: flex;
-    align-items: center;
-    gap: 24px;
-    margin-bottom: 16px;
-}
-
 .hero-left {
     flex: 0 0 auto;
 }
 
 #current-temp {
     font-size: 3rem;
-    /* Reduced from 6rem equivalent */
     font-weight: 600;
     color: var(--text-primary);
     line-height: 1;
@@ -180,7 +171,6 @@ header {
 }
 
 #weather-hero {
-    margin-bottom: var(--spacing-lg);
     overflow: hidden;
     position: relative;
     max-width: 600px;
@@ -191,9 +181,8 @@ header {
 .hero-content {
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: var(--spacing-xl);
-    padding: var(--spacing-lg) 0;
+    gap: 24px;
+    margin-bottom: 16px;
 }
 
 #weather-icon-container {
@@ -202,27 +191,6 @@ header {
     /* Standard warm yellow */
     display: flex;
     align-items: center;
-}
-
-#recommendation-card {
-    border-left: 4px solid var(--primary);
-    background: #e8f0fe;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-}
-
-#recommendation-text {
-    font-size: 1.1rem;
-    line-height: 1.6;
-    color: var(--text-main);
-    margin: 0;
-    max-width: 80%;
-}
-
-i[data-lucide] {
-    stroke-width: 2;
 }
 
 .location-info h2 {

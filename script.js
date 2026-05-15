@@ -17,6 +17,7 @@ const els = {
     feelsLike: document.getElementById('feels-like'),
     windForce: document.getElementById('wind-force'),
     windArrow: document.getElementById('wind-arrow'),
+    humidity: document.getElementById('humidity'),
     dewPoint: document.getElementById('dew-point'),
     recommendationBadge: document.getElementById('recommendation-badge'),
     clothingTip: document.getElementById('clothing-tip'),
@@ -169,6 +170,7 @@ function updateUI(data) {
 
     els.currentTemp.innerText = `${Math.round(current.temperature_2m)}°`;
     if (els.feelsLike) els.feelsLike.innerText = `${Math.round(current.apparent_temperature)}°`;
+    if (els.humidity) els.humidity.innerText = `${Math.round(current.relative_humidity_2m)}%`;
 
     const bft = getBeaufort(current.wind_speed_10m);
     if (els.windForce) els.windForce.innerText = `${bft} Bft`;
