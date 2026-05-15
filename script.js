@@ -825,22 +825,35 @@ function uvZoneColor(v) {
     return '#D93025';
 }
 
-const uvBandPlugin = {
-    id: 'uvBands',
-    beforeDraw(chart) {
-        const { ctx, chartArea: { left, right, top, bottom }, scales: { y } } = chart;
-        [
-            { yMin: 0, yMax: 3,        color: '#57BB8A14' },
-            { yMin: 3, yMax: 5,        color: '#F9AB0014' },
-            { yMin: 5, yMax: 7,        color: '#F57C0014' },
-            { yMin: 7, yMax: y.max,    color: '#D9302514' }
-        ].forEach(({ yMin, yMax, color }) => {
-            const yTop = y.getPixelForValue(Math.min(yMax, y.max));
-            const yBot = y.getPixelForValue(Math.max(yMin, y.min));
-            if (yTop >= bottom || yBot <= top) return;
-            ctx.fillStyle = color;
-            ctx.fillRect(left, Math.max(yTop, top), right - left, Math.min(yBot, bottom) - Math.max(yTop, top));
-        });
+const uvAreaFillPlugin = {
+    id: 'uvAreaFill',
+    beforeDatasetsDraw(chart) {
+        const meta = chart.getDatasetMeta(1);
+        const data = chart.data.datasets[1]?.data;
+        if (!meta || !data) return;
+
+        const { ctx, scales: { y } } = chart;
+        const baselineY = y.getPixelForValue(0);
+
+        ctx.save();
+        for (let i = 0; i < meta.data.length - 1; i++) {
+            const valueA = data[i];
+            const valueB = data[i + 1];
+            if (valueA === null || valueA === undefined || valueB === null || valueB === undefined) continue;
+
+            const ptA = meta.data[i];
+            const ptB = meta.data[i + 1];
+
+            ctx.fillStyle = uvZoneColor(Math.max(valueA, valueB)) + 'cc';
+            ctx.beginPath();
+            ctx.moveTo(ptA.x, ptA.y);
+            ctx.lineTo(ptB.x, ptB.y);
+            ctx.lineTo(ptB.x, baselineY);
+            ctx.lineTo(ptA.x, baselineY);
+            ctx.closePath();
+            ctx.fill();
+        }
+        ctx.restore();
     }
 };
 
@@ -1052,7 +1065,7 @@ function drawUVChart(canvas, uvInfo, labels, predicted, measured) {
                 }
             }
         },
-        plugins: [uvBandPlugin]
+        plugins: [uvAreaFillPlugin]
     });
 }
 
