@@ -705,15 +705,15 @@ function renderChart(hourly, minutely15) {
         let m15Start = minutely15.time.findIndex(t => t >= nowISO);
         if (m15Start === -1) m15Start = 0;
 
-        for (let i = 0; i < 192; i++) {
+        for (let i = 0; i < 48; i++) {
             const idx = m15Start + i;
             if (idx >= minutely15.time.length) break;
             const ts = minutely15.time[idx];
             const min = ts.substring(14, 16);
             const hour = parseInt(ts.substring(11, 13), 10);
 
-            // X-axis labels only at each hour
-            if (min === '00') {
+            // Label every 4 hours, horizontal
+            if (min === '00' && hour % 4 === 0) {
                 const day = new Date(ts).toLocaleDateString('nl-NL', { weekday: 'short' });
                 labels.push(hour === 0 ? `${day} 0:00` : `${hour}:00`);
             } else {
@@ -735,11 +735,11 @@ function renderChart(hourly, minutely15) {
         // Hourly fallback
         let startIndex = hourly.time.findIndex(t => t >= nowISO);
         if (startIndex === -1) startIndex = 0;
-        for (let i = startIndex; i < startIndex + 48; i++) {
+        for (let i = startIndex; i < startIndex + 12; i++) {
             if (hourly.temperature_2m[i] === undefined) break;
             const hour = parseInt(hourly.time[i].substring(11, 13), 10);
             const day = new Date(hourly.time[i]).toLocaleDateString('nl-NL', { weekday: 'short' });
-            labels.push(hour === 0 ? `${day} 0:00` : `${hour}:00`);
+            labels.push(hour % 4 === 0 ? (hour === 0 ? `${day} 0:00` : `${hour}:00`) : '');
             temps.push(hourly.temperature_2m[i]);
             const p = hourly.precipitation[i] || 0;
             rain.push(p > 0 ? p : null);
@@ -791,7 +791,10 @@ function renderChart(hourly, minutely15) {
                 }
             },
             scales: {
-                x: { grid: { display: true, color: 'rgba(0,0,0,0.05)' } },
+                x: {
+                    grid: { display: true, color: 'rgba(0,0,0,0.05)' },
+                    ticks: { maxRotation: 0, minRotation: 0, font: { size: 11 } }
+                },
                 y: {
                     display: true,
                     position: 'left',
@@ -806,7 +809,8 @@ function renderChart(hourly, minutely15) {
                     grid: { display: false }
                 }
             }
-        }
+        },
+        plugins: [crosshairPlugin]
     });
 
     const wrapper = document.querySelector('.chart-scroll-wrapper');
@@ -828,6 +832,24 @@ function uvZoneColor(v) {
     if (v < 6.5) return '#F57C00';
     return '#D93025';
 }
+
+const crosshairPlugin = {
+    id: 'crosshair',
+    afterDraw(chart) {
+        const active = chart.tooltip._active;
+        if (!active?.length) return;
+        const { ctx, chartArea: { top, bottom } } = chart;
+        const x = active[0].element.x;
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, bottom);
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(200, 0, 0, 0.35)';
+        ctx.stroke();
+        ctx.restore();
+    }
+};
 
 const uvAreaFillPlugin = {
     id: 'uvAreaFill',
@@ -971,12 +993,12 @@ function renderUVChart(hourly, daily) {
 
     // Initial UI from Open-Meteo
     const maxUVom = Math.max(...omPredicted);
-    const uvInfoOm = getUVLevel(maxUVom);
     const currentUVValue = hourly.uv_index[todayStart + currentHour] ?? 0;
+    const uvInfoCur = getUVLevel(currentUVValue);
     if (currentEl) currentEl.innerText = currentUVValue.toFixed(1);
     if (maxEl) maxEl.innerText = maxUVom.toFixed(1);
-    if (levelEl) { levelEl.innerText = uvInfoOm.label; levelEl.className = `uv-badge ${uvInfoOm.cls}`; }
-    if (tipEl) tipEl.innerText = uvInfoOm.tip;
+    if (levelEl) { levelEl.innerText = uvInfoCur.label; levelEl.className = `uv-badge ${uvInfoCur.cls}`; }
+    if (tipEl) tipEl.innerText = uvInfoCur.tip;
 
     // Initial draw: Open-Meteo predicted + measured up to now
     const omMeasured = omPredicted.map((v, i) => i <= currentQuarterInSlice ? v : null);
@@ -999,25 +1021,23 @@ function renderUVChart(hourly, daily) {
         }
         if (!sliceExpected.some(v => v !== null)) return;
 
-        // Update stats from RIVM expected max
+        // Max UV from RIVM expected
         const maxUVrivm = Math.max(...sliceExpected.filter(v => v !== null), 0);
-        const uvInfo = getUVLevel(maxUVrivm);
         if (maxEl) maxEl.innerText = maxUVrivm.toFixed(1);
-        if (levelEl) { levelEl.innerText = uvInfo.label; levelEl.className = `uv-badge ${uvInfo.cls}`; }
-        if (tipEl) tipEl.innerText = uvInfo.tip;
 
         // Current UV: latest RIVM measured, else RIVM expected for current quarter
-        if (currentEl) {
-            const curQuarter = currentHour * 4 + Math.floor(locationMinute() / 15);
-            let curVal = null;
-            for (let qIdx = curQuarter; qIdx >= 0 && curVal === null; qIdx--) {
-                if (rivmMeasured[qIdx] !== null) curVal = rivmMeasured[qIdx];
-            }
-            if (curVal === null) curVal = rivmExpected[curQuarter];
-            if (curVal !== null) {
-                currentEl.innerText = curVal.toFixed(1);
-                currentEl.title = t('rivm_measured');
-            }
+        const curQuarter = currentHour * 4 + Math.floor(locationMinute() / 15);
+        let curVal = null;
+        for (let qIdx = curQuarter; qIdx >= 0 && curVal === null; qIdx--) {
+            if (rivmMeasured[qIdx] !== null) curVal = rivmMeasured[qIdx];
+        }
+        if (curVal === null) curVal = rivmExpected[curQuarter];
+        if (curVal !== null && currentEl) {
+            currentEl.innerText = curVal.toFixed(1);
+            currentEl.title = t('rivm_measured');
+            const uvInfoRivm = getUVLevel(curVal);
+            if (levelEl) { levelEl.innerText = uvInfoRivm.label; levelEl.className = `uv-badge ${uvInfoRivm.cls}`; }
+            if (tipEl) tipEl.innerText = uvInfoRivm.tip;
         }
 
         drawUVChart(canvas, labels, sliceExpected, sliceMeasured);
@@ -1074,8 +1094,7 @@ function drawUVChart(canvas, labels, predicted, measured) {
                     callbacks: {
                         label: item => item.parsed.y !== null
                             ? `${item.dataset.label}: ${item.parsed.y.toFixed(1)}`
-                            : null,
-                        filter: item => item.parsed.y !== null
+                            : null
                     }
                 }
             },
@@ -1092,7 +1111,7 @@ function drawUVChart(canvas, labels, predicted, measured) {
                 }
             }
         },
-        plugins: [uvAreaFillPlugin]
+        plugins: [uvAreaFillPlugin, crosshairPlugin]
     });
 }
 

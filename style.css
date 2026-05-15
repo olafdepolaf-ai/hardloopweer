@@ -564,7 +564,7 @@ header {
 
 .chart-container {
     height: 250px;
-    min-width: 1200px;
+    width: 100%;
 }
 
 /* UV / Zonkracht */
