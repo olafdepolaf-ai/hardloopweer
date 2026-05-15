@@ -943,11 +943,6 @@ function renderUVChart(hourly, daily) {
     fetchRIVMUV().then(rivm => {
         if (!rivm) return;
 
-        if (rivm.Band1 > 0 && currentEl) {
-            currentEl.innerText = rivm.Band1.toFixed(1);
-            currentEl.title = t('rivm_measured');
-        }
-
         // Bands 82-108 zijn meetwaarden: Band108 = nu, elke stap terug = 15 min
         const now = new Date();
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
@@ -966,6 +961,13 @@ function renderUVChart(hourly, daily) {
                 ? val
                 : (rivmFull[hour] * bucketCount[hour] + val) / (bucketCount[hour] + 1);
             bucketCount[hour]++;
+        }
+
+        // Sync the displayed current value with what the chart shows at the current hour
+        const rivmNow = rivmFull[currentHour];
+        if (rivmNow !== null && rivmNow > 0 && currentEl) {
+            currentEl.innerText = rivmNow.toFixed(1);
+            currentEl.title = t('rivm_measured');
         }
 
         const rivmSliced = rivmFull.slice(startHour, endHour + 1);
