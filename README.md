@@ -1,39 +1,39 @@
 # Hardloopweer
 
-Een simpele web-app voor hardlopers die snel willen checken of het goed weer is om te gaan rennen.
+A simple web app for runners who want to quickly check whether the weather is good for a run.
 
-## Wat doet het?
+## What does it do?
 
-Je ziet in één oogopslag:
+At a glance you get:
 
-- Huidige temperatuur, gevoelstemperatuur, wind, luchtvochtigheid en dauwpunt
-- Go/no-go advies op basis van dauwpunt, gevoelstemperatuur, UV en windkracht
-- Kledingadvies afgestemd op de omstandigheden
-- Zonkracht (UV-index) met een dag-grafiek en RIVM meetwaarden voor Nederland
-- Temperatuur en neerslag (15-minuten resolutie) voor de komende 48 uur
-- Regenradar via Buienradar (alleen Nederland)
-- Officiële weerwaarschuwingen via MeteoAlarm (Europa) en NWS (VS)
-- Zoeken op stad met autocomplete, of gebruik je huidige locatie
+- Current temperature, feels-like, wind, humidity and dew point
+- Go/no-go advice based on dew point, feels-like temperature, UV index and wind force
+- Clothing recommendations tailored to the conditions
+- UV index with a day chart and real-time RIVM measurements (Netherlands)
+- Temperature and precipitation (15-minute resolution) for the next 48 hours
+- Rain radar via Buienradar (Netherlands only)
+- Official weather warnings via MeteoAlarm (Europe) and NWS (US)
+- City search with autocomplete, or use your current location
 
-## Technisch
+## Tech
 
-Pure HTML/CSS/JS — geen build-tool, geen framework.
+Plain HTML/CSS/JS — no build tool, no framework.
 
-| Wat | Bron |
+| What | Source |
 |---|---|
-| Weerdata & geocoding | [Open-Meteo](https://open-meteo.com) (gratis, geen API key) |
+| Weather data & geocoding | [Open-Meteo](https://open-meteo.com) (free, no API key) |
 | Reverse geocoding | [Nominatim](https://nominatim.org) (OpenStreetMap) |
-| UV meetwaarden Nederland | [RIVM Zonkrachtwijzer](https://www.rivm.nl/zonkracht) |
-| Weerwaarschuwingen Europa | [MeteoAlarm via MET.no](https://api.met.no) |
-| Weerwaarschuwingen VS | [NWS](https://www.weather.gov/documentation/services-web-api) |
-| Regenradar | [Buienradar](https://www.buienradar.nl) |
-| Grafieken | [Chart.js](https://www.chartjs.org) |
-| Weericons | [Meteocons](https://github.com/basmilius/weather-icons) |
+| UV measurements (NL) | [RIVM Zonkrachtwijzer](https://www.rivm.nl/zonkracht) |
+| Weather warnings Europe | [MeteoAlarm via MET.no](https://api.met.no) |
+| Weather warnings US | [NWS](https://www.weather.gov/documentation/services-web-api) |
+| Rain radar | [Buienradar](https://www.buienradar.nl) |
+| Charts | [Chart.js](https://www.chartjs.org) |
+| Weather icons | [Meteocons](https://github.com/basmilius/weather-icons) |
 
 ## Live
 
 [hardloopweer.olaflemmers.nl](https://hardloopweer.olaflemmers.nl)
 
-## Licentie
+## License
 
-MIT — zie [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
