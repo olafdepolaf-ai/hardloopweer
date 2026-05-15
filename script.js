@@ -60,7 +60,8 @@ const els = {
     comfortLevel: document.getElementById('comfort-level'),
     buienradarFrame: document.getElementById('buienradar-frame'),
     searchContainer: document.getElementById('search-container'),
-    searchToggle: document.getElementById('search-toggle')
+    searchToggle: document.getElementById('search-toggle'),
+    searchSuggestions: document.getElementById('search-suggestions')
 };
 
 let state = {
@@ -86,6 +87,180 @@ function locationISO() {
 
 function isInNetherlands() {
     return state.lat >= 50.5 && state.lat <= 53.7 && state.lon >= 3.3 && state.lon <= 7.3;
+}
+
+// ---- Weather alerts ----
+
+const ALERT_ICONS = {
+    1: '💨', 2: '🌨️', 3: '⛈️', 4: '🌫️', 5: '🌡️',
+    6: '🥶', 7: '🌊', 8: '🔥', 9: '⛷️', 10: '🌧️', 11: '☀️', 12: '⚠️'
+};
+
+const ALERT_LOCALE = { nl: 'nl-NL', en: 'en-GB', de: 'de-DE', fr: 'fr-FR', es: 'es-ES' };
+
+function formatAlertTime(isoStr) {
+    try {
+        return new Date(isoStr).toLocaleString(ALERT_LOCALE[state.lang] || 'nl-NL', {
+            weekday: 'short', day: 'numeric', month: 'short',
+            hour: '2-digit', minute: '2-digit',
+            timeZone: state.timezone
+        });
+    } catch { return isoStr; }
+}
+
+async function fetchWeatherAlerts() {
+    // MeteoAlarm via MET.no (covers most of Europe)
+    try {
+        const res = await fetch(
+            `https://api.met.no/weatherapi/metalerts/2.0/current.json?lat=${state.lat}&lon=${state.lon}`
+        );
+        if (res.ok) {
+            const data = await res.json();
+            if (data.features?.length > 0) {
+                return data.features.map(f => {
+                    const p = f.properties;
+                    const color = (p.riskMatrixColor || 'Yellow').toLowerCase();
+                    const typeCode = parseInt((p.awareness_type || '12').split(';')[0].trim(), 10);
+                    return {
+                        color: ['yellow', 'orange', 'red'].includes(color) ? color : 'yellow',
+                        typeCode: isNaN(typeCode) ? 12 : typeCode,
+                        title: p.title || p.eventAwarenessName || p.event || '',
+                        description: (p.description || '').trim(),
+                        expires: p.expires
+                    };
+                });
+            }
+            return [];
+        }
+    } catch { /* not in MeteoAlarm coverage or CORS blocked */ }
+
+    // NWS for US locations
+    if (state.lat >= 24 && state.lat <= 50 && state.lon >= -125 && state.lon <= -66) {
+        try {
+            const res = await fetch(
+                `https://api.weather.gov/alerts/active?point=${state.lat.toFixed(4)},${state.lon.toFixed(4)}`
+            );
+            if (res.ok) {
+                const data = await res.json();
+                return (data.features || []).map(f => {
+                    const p = f.properties;
+                    const sev = p.severity;
+                    const color = sev === 'Extreme' ? 'red' : sev === 'Severe' ? 'orange' : 'yellow';
+                    return {
+                        color, typeCode: 12,
+                        title: p.event || '',
+                        description: (p.description || '').trim(),
+                        expires: p.expires
+                    };
+                });
+            }
+        } catch { /* NWS unavailable */ }
+    }
+
+    return [];
+}
+
+function renderAlerts(alerts) {
+    const section = document.getElementById('alerts-section');
+    const container = document.getElementById('alerts-container');
+    if (!section || !container) return;
+
+    if (!alerts?.length) {
+        section.classList.add('hidden');
+        return;
+    }
+
+    const colorOrder = { red: 0, orange: 1, yellow: 2 };
+    const sorted = [...alerts].sort((a, b) => (colorOrder[a.color] ?? 3) - (colorOrder[b.color] ?? 3));
+
+    container.innerHTML = sorted.map((a, i) => {
+        const icon = ALERT_ICONS[a.typeCode] || '⚠️';
+        const expStr = a.expires ? formatAlertTime(a.expires) : '';
+        return `${i > 0 ? '<hr class="alert-divider">' : ''}
+        <div class="alert-item alert-${a.color}">
+            <div class="alert-header">
+                <span class="alert-icon">${icon}</span>
+                <strong>${escHtml(a.title)}</strong>
+            </div>
+            ${expStr ? `<p class="alert-expires">${t('alert_expires', { time: expStr })}</p>` : ''}
+            ${a.description ? `<p class="alert-desc">${escHtml(a.description)}</p>` : ''}
+        </div>`;
+    }).join('');
+
+    section.className = 'card';
+    section.classList.remove('hidden');
+}
+
+function debounce(fn, delay) {
+    let timer;
+    return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
+}
+
+function countryFlag(code) {
+    if (!code) return '';
+    return code.toUpperCase().replace(/./g, c => String.fromCodePoint(c.charCodeAt(0) + 127397));
+}
+
+async function fetchSuggestions(query) {
+    if (!query || query.length < 2) return [];
+    try {
+        const res = await fetch(`${CONFIG.GEO_API_URL}?name=${encodeURIComponent(query)}&count=6&language=${state.lang}&format=json`);
+        const data = await res.json();
+        return data.results || [];
+    } catch {
+        return [];
+    }
+}
+
+let activeSuggestionIdx = -1;
+
+function showSuggestions(results) {
+    const ul = els.searchSuggestions;
+    if (!ul || results.length === 0) { hideSuggestions(); return; }
+    ul.innerHTML = results.map((r, i) => {
+        const flag = countryFlag(r.country_code);
+        const detail = [r.admin1, r.country].filter(Boolean).join(', ');
+        return `<li class="search-suggestion-item" data-idx="${i}" data-lat="${r.latitude}" data-lon="${r.longitude}" data-name="${escAttr(r.name)}">
+            <span class="suggestion-name">${flag} ${escHtml(r.name)}</span>
+            <span class="suggestion-detail">${escHtml(detail)}</span>
+        </li>`;
+    }).join('');
+    ul.classList.remove('hidden');
+    activeSuggestionIdx = -1;
+    ul.querySelectorAll('.search-suggestion-item').forEach(item => {
+        item.addEventListener('mousedown', (e) => { e.preventDefault(); selectSuggestion(item); });
+    });
+}
+
+function hideSuggestions() {
+    els.searchSuggestions?.classList.add('hidden');
+    activeSuggestionIdx = -1;
+}
+
+function selectSuggestion(item) {
+    const lat = parseFloat(item.dataset.lat);
+    const lon = parseFloat(item.dataset.lon);
+    const name = item.dataset.name;
+    state.lat = lat;
+    state.lon = lon;
+    state.city = name;
+    els.cityName.innerText = name;
+    els.citySearch.value = name;
+    hideSuggestions();
+    fetchWeather();
+    updateBuienradar();
+    if (!els.searchToggle?.classList.contains('hidden')) {
+        els.searchContainer.classList.add('collapsed');
+        els.searchToggle.classList.remove('active');
+    }
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function escAttr(s) {
+    return String(s).replace(/"/g, '&quot;');
 }
 
 function onLocationGranted() {
@@ -129,8 +304,44 @@ async function init() {
         fetchWeather();
     }
 
-    els.citySearch.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') searchCity(els.citySearch.value);
+    const debouncedSuggest = debounce(async (query) => {
+        const results = await fetchSuggestions(query);
+        showSuggestions(results);
+    }, 280);
+
+    els.citySearch.addEventListener('input', (e) => {
+        const q = e.target.value.trim();
+        if (q.length < 2) { hideSuggestions(); return; }
+        debouncedSuggest(q);
+    });
+
+    els.citySearch.addEventListener('keydown', (e) => {
+        const items = els.searchSuggestions?.querySelectorAll('.search-suggestion-item');
+        if (e.key === 'ArrowDown') {
+            if (!items?.length) return;
+            e.preventDefault();
+            activeSuggestionIdx = Math.min(activeSuggestionIdx + 1, items.length - 1);
+            items.forEach((el, i) => el.classList.toggle('active', i === activeSuggestionIdx));
+        } else if (e.key === 'ArrowUp') {
+            if (!items?.length) return;
+            e.preventDefault();
+            activeSuggestionIdx = Math.max(activeSuggestionIdx - 1, 0);
+            items.forEach((el, i) => el.classList.toggle('active', i === activeSuggestionIdx));
+        } else if (e.key === 'Enter') {
+            if (activeSuggestionIdx >= 0 && items?.length) {
+                e.preventDefault();
+                selectSuggestion(items[activeSuggestionIdx]);
+            } else {
+                hideSuggestions();
+                searchCity(els.citySearch.value);
+            }
+        } else if (e.key === 'Escape') {
+            hideSuggestions();
+        }
+    });
+
+    els.citySearch.addEventListener('blur', () => {
+        setTimeout(hideSuggestions, 150);
     });
 
     els.locationBtn.addEventListener('click', () => {
@@ -207,6 +418,7 @@ async function fetchWeather() {
         longitude: state.lon,
         current: ['temperature_2m', 'relative_humidity_2m', 'apparent_temperature', 'is_day', 'weather_code', 'wind_speed_10m', 'wind_direction_10m'],
         hourly: ['temperature_2m', 'weather_code', 'dew_point_2m', 'precipitation', 'uv_index'],
+        minutely_15: ['precipitation'],
         daily: ['sunrise', 'sunset'],
         timezone: 'auto',
         forecast_days: 2
@@ -273,8 +485,9 @@ function updateUI(data) {
     updateComfortLevel(dp, current.temperature_2m);
     const currentUV = data.hourly.uv_index?.[hourIdx] ?? 0;
     generateRecommendation(current, dp, currentUV);
-    renderChart(data.hourly);
+    renderChart(data.hourly, data.minutely_15);
     renderUVChart(data.hourly, data.daily);
+    fetchWeatherAlerts().then(renderAlerts);
 }
 
 function updateComfortLevel(dewPoint, temp) {
@@ -286,32 +499,31 @@ function updateComfortLevel(dewPoint, temp) {
     els.comfortContainer.classList.remove('hidden');
     let level = "";
     let cssClass = "";
-    let adjustment = "";
 
     if (sum <= 100) {
-        level = t('comfort_perfect');  cssClass = "very-comfortable"; adjustment = t('comfort_adj_perfect');
+        level = t('comfort_perfect');  cssClass = "very-comfortable";
     } else if (sum <= 110) {
-        level = t('comfort_good');     cssClass = "comfortable";      adjustment = t('comfort_adj_good');
+        level = t('comfort_good');     cssClass = "comfortable";
     } else if (sum <= 120) {
-        level = t('comfort_sticky');   cssClass = "humid";            adjustment = t('comfort_adj_sticky');
+        level = t('comfort_sticky');   cssClass = "humid";
     } else if (sum <= 130) {
-        level = t('comfort_warm');     cssClass = "uncomfortable";    adjustment = t('comfort_adj_warm');
+        level = t('comfort_warm');     cssClass = "uncomfortable";
     } else if (sum <= 140) {
-        level = t('comfort_tacky');    cssClass = "uncomfortable";    adjustment = t('comfort_adj_tacky');
+        level = t('comfort_tacky');    cssClass = "uncomfortable";
     } else if (sum <= 150) {
-        level = t('comfort_tough');    cssClass = "oppressive";       adjustment = t('comfort_adj_tough');
+        level = t('comfort_tough');    cssClass = "oppressive";
     } else if (sum <= 160) {
-        level = t('comfort_heavy');    cssClass = "oppressive";       adjustment = t('comfort_adj_heavy');
+        level = t('comfort_heavy');    cssClass = "oppressive";
     } else if (sum <= 170) {
-        level = t('comfort_suffer');   cssClass = "oppressive";       adjustment = t('comfort_adj_suffer');
+        level = t('comfort_suffer');   cssClass = "oppressive";
     } else if (sum <= 180) {
-        level = t('comfort_extreme');  cssClass = "oppressive";       adjustment = t('comfort_adj_extreme');
+        level = t('comfort_extreme');  cssClass = "oppressive";
     } else {
-        level = t('comfort_stop');     cssClass = "oppressive";       adjustment = t('comfort_adj_stop');
+        level = t('comfort_stop');     cssClass = "oppressive";
     }
 
     if (els.comfortLevel) {
-        els.comfortLevel.innerHTML = `<strong>${level}</strong><br><small>${adjustment}</small>`;
+        els.comfortLevel.innerHTML = `<strong>${level}</strong>`;
     }
     els.comfortContainer.className = `comfort-badge ${cssClass}`;
 }
@@ -477,52 +689,89 @@ function generateRecommendation(current, dewPoint, uvIndex = 0) {
     }
 }
 
-function renderChart(hourly) {
+function renderChart(hourly, minutely15) {
     const canvas = document.getElementById('temp-chart');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     const nowISO = locationISO().substring(0, 14) + '00';
-    let startIndex = hourly.time.findIndex(t => t >= nowISO);
-    if (startIndex === -1) startIndex = 0;
 
-    const labels = [];
-    const temps = [];
-    const rain = [];
+    const labels = [], temps = [], rain = [];
 
-    for (let i = startIndex; i < startIndex + 48; i++) {
-        if (hourly.temperature_2m[i] === undefined) break;
-        const date = new Date(hourly.time[i]);
-        const day = date.toLocaleDateString('nl-NL', { weekday: 'short' });
-        const time = date.getHours() + ':00';
-        labels.push(date.getHours() === 0 ? `${day} ${time}` : time);
-        temps.push(hourly.temperature_2m[i]);
-        rain.push(hourly.precipitation[i] || 0);
+    if (minutely15?.time?.length) {
+        let m15Start = minutely15.time.findIndex(t => t >= nowISO);
+        if (m15Start === -1) m15Start = 0;
+
+        for (let i = 0; i < 192; i++) {
+            const idx = m15Start + i;
+            if (idx >= minutely15.time.length) break;
+            const ts = minutely15.time[idx];
+            const min = ts.substring(14, 16);
+            const hour = parseInt(ts.substring(11, 13), 10);
+
+            // X-axis labels only at each hour
+            if (min === '00') {
+                const day = new Date(ts).toLocaleDateString('nl-NL', { weekday: 'short' });
+                labels.push(hour === 0 ? `${day} 0:00` : `${hour}:00`);
+            } else {
+                labels.push('');
+            }
+
+            // Temperature only at full hours (spanGaps draws the line between them)
+            if (min === '00') {
+                const hIdx = hourly.time.findIndex(t => t.startsWith(ts.substring(0, 13)));
+                temps.push(hIdx !== -1 ? hourly.temperature_2m[hIdx] : null);
+            } else {
+                temps.push(null);
+            }
+
+            const p = minutely15.precipitation[idx] || 0;
+            rain.push(p > 0 ? p : null);
+        }
+    } else {
+        // Hourly fallback
+        let startIndex = hourly.time.findIndex(t => t >= nowISO);
+        if (startIndex === -1) startIndex = 0;
+        for (let i = startIndex; i < startIndex + 48; i++) {
+            if (hourly.temperature_2m[i] === undefined) break;
+            const hour = parseInt(hourly.time[i].substring(11, 13), 10);
+            const day = new Date(hourly.time[i]).toLocaleDateString('nl-NL', { weekday: 'short' });
+            labels.push(hour === 0 ? `${day} 0:00` : `${hour}:00`);
+            temps.push(hourly.temperature_2m[i]);
+            const p = hourly.precipitation[i] || 0;
+            rain.push(p > 0 ? p : null);
+        }
     }
 
     if (state.chart) state.chart.destroy();
 
     state.chart = new Chart(ctx, {
-        type: 'line',
+        type: 'bar',
         data: {
-            labels: labels,
+            labels,
             datasets: [
                 {
+                    type: 'line',
                     label: 'Temp (°C)',
                     data: temps,
-                    borderColor: '#1a73e8',
-                    backgroundColor: 'rgba(26, 115, 232, 0.1)',
+                    borderColor: '#1a1b1e',
+                    backgroundColor: 'rgba(0,0,0,0.07)',
                     fill: true,
                     tension: 0.4,
-                    yAxisID: 'y'
+                    pointRadius: 0,
+                    spanGaps: true,
+                    yAxisID: 'y',
+                    order: 1
                 },
                 {
+                    type: 'bar',
                     label: 'Regen (mm)',
                     data: rain,
-                    borderColor: '#1e8e3e',
-                    backgroundColor: 'rgba(30, 142, 62, 0.1)',
-                    fill: true,
-                    tension: 0.4,
-                    yAxisID: 'y1'
+                    backgroundColor: 'rgba(26, 115, 232, 0.75)',
+                    borderWidth: 0,
+                    borderRadius: 2,
+                    barThickness: 4,
+                    yAxisID: 'y1',
+                    order: 0
                 }
             ]
         },
@@ -531,7 +780,11 @@ function renderChart(hourly) {
             maintainAspectRatio: false,
             plugins: {
                 legend: { display: false },
-                tooltip: { mode: 'index', intersect: false }
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    filter: item => item.parsed.y !== null
+                }
             },
             scales: {
                 x: { grid: { display: true, color: 'rgba(0,0,0,0.05)' } },

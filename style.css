@@ -106,6 +106,13 @@ header {
     color: var(--text-primary);
 }
 
+.search-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 400px;
+    margin: 14px auto 0;
+}
+
 .search-container {
     display: flex;
     align-items: center;
@@ -113,18 +120,65 @@ header {
     border-radius: var(--radius-lg);
     padding: 6px 16px;
     width: 100%;
-    max-width: 400px;
-    margin: 0 auto;
     overflow: hidden;
     max-height: 60px;
     opacity: 1;
-    transition: max-height 0.3s ease, opacity 0.25s ease, margin-bottom 0.3s ease;
+    transition: max-height 0.3s ease, opacity 0.25s ease;
 }
 
 .search-container.collapsed {
     max-height: 0;
     opacity: 0;
-    margin-bottom: -20px;
+}
+
+.search-wrapper.collapsed-wrapper {
+    margin-top: 0;
+    overflow: hidden;
+}
+
+.search-suggestions {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border-radius: var(--radius-md);
+    box-shadow: var(--elevation-2);
+    z-index: 200;
+    list-style: none;
+    overflow: hidden;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.search-suggestion-item {
+    padding: 10px 16px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border-bottom: 1px solid #f1f3f4;
+    transition: background 0.12s;
+}
+
+.search-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.search-suggestion-item:hover,
+.search-suggestion-item.active {
+    background: #f8f9fa;
+}
+
+.suggestion-name {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.suggestion-detail {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
 }
 
 #city-search {
@@ -180,6 +234,58 @@ header {
 
 #weather-hero.card {
     align-items: stretch;
+}
+
+/* ---- Weather alerts ---- */
+#alerts-section {
+    padding: 0;
+    overflow: hidden;
+    align-items: flex-start;
+    text-align: left;
+    gap: 0;
+}
+
+.alert-item {
+    width: 100%;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border-left: 4px solid var(--alert-color, #F9AB00);
+}
+
+.alert-item.alert-yellow { --alert-color: #F9AB00; }
+.alert-item.alert-orange { --alert-color: #F57C00; }
+.alert-item.alert-red    { --alert-color: #D93025; }
+
+.alert-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--alert-color, #F9AB00);
+}
+
+.alert-icon { font-size: 1.2rem; line-height: 1; }
+
+.alert-expires {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.alert-desc {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    white-space: pre-line;
+}
+
+.alert-divider {
+    width: 100%;
+    border: none;
+    border-top: 1px solid #f1f3f4;
+    margin: 0;
 }
 
 #running-recommendation {
@@ -436,11 +542,12 @@ header {
 }
 
 .dot.temp {
-    background-color: #1a73e8;
+    background-color: #1a1b1e;
 }
 
 .dot.rain {
-    background-color: #1e8e3e;
+    background-color: #1a73e8;
+    border-radius: 2px;
 }
 
 .chart-scroll-wrapper {
@@ -652,46 +759,25 @@ i[data-lucide] {
     }
 
     main {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto auto auto;
-        gap: 20px;
-        align-items: start;
+        columns: 2;
+        column-gap: 20px;
     }
 
+    /* Prevent cards from splitting across columns */
+    main > * {
+        break-inside: avoid;
+    }
+
+    /* Alerts banner spans both columns */
+    #alerts-section {
+        column-span: all;
+    }
+
+    /* Wrapper div needs its own bottom margin (not a .card) */
     .weather-hero-container {
-        grid-column: 1;
-        grid-row: 1;
+        margin-bottom: 20px;
     }
 
-    #running-recommendation {
-        grid-column: 2;
-        grid-row: 1;
-    }
-
-    #uv-section {
-        grid-column: 1;
-        grid-row: 2;
-    }
-
-    #forecast-mini {
-        grid-column: 2;
-        grid-row: 2;
-    }
-
-    #buienradar-section {
-        grid-column: 1 / -1;
-        grid-row: 3;
-    }
-
-    /* Cards strekken zich niet meer naar het midden */
-    .card {
-        margin-left: 0;
-        margin-right: 0;
-        margin-bottom: 0;
-    }
-
-    /* Forecast chart mag groter op laptop */
     .chart-container {
         min-width: 100%;
     }
