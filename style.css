@@ -563,24 +563,6 @@ header {
     color: #fff;
 }
 
-.bmc-btn {
-    display: inline-block;
-    background: rgba(255, 255, 255, 0.12);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.8);
-    border-radius: 20px;
-    padding: 6px 16px;
-    font-size: 0.82rem;
-    font-family: inherit;
-    text-decoration: none;
-    transition: background 0.15s, color 0.15s;
-    margin-bottom: 12px;
-}
-
-.bmc-btn:hover {
-    background: rgba(255, 255, 255, 0.22);
-    color: #fff;
-}
 
 footer {
     text-align: center;
@@ -644,4 +626,57 @@ footer {
 
 i[data-lucide] {
     stroke-width: 2.5;
+}
+
+/* ── Laptop layout (≥ 900px) ────────────────────────────────── */
+@media (min-width: 900px) {
+    #app {
+        max-width: 1020px;
+        padding: 28px 32px;
+    }
+
+    main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto auto;
+        gap: 20px;
+        align-items: start;
+    }
+
+    .weather-hero-container {
+        grid-column: 1;
+        grid-row: 1;
+    }
+
+    #running-recommendation {
+        grid-column: 2;
+        grid-row: 1;
+    }
+
+    #uv-section {
+        grid-column: 1;
+        grid-row: 2;
+    }
+
+    #forecast-mini {
+        grid-column: 2;
+        grid-row: 2;
+    }
+
+    #buienradar-section {
+        grid-column: 1 / -1;
+        grid-row: 3;
+    }
+
+    /* Cards strekken zich niet meer naar het midden */
+    .card {
+        margin-left: 0;
+        margin-right: 0;
+        margin-bottom: 0;
+    }
+
+    /* Forecast chart mag groter op laptop */
+    .chart-container {
+        min-width: 100%;
+    }
 }
