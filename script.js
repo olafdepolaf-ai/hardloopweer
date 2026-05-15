@@ -80,6 +80,10 @@ function locationHour() {
     return Math.floor((Date.now() / 1000 + state.utcOffsetSeconds) / 3600) % 24;
 }
 
+function locationMinute() {
+    return Math.floor((Date.now() / 1000 + state.utcOffsetSeconds) / 60) % 60;
+}
+
 // Local ISO timestamp at searched location, for comparing with API hourly.time strings
 function locationISO() {
     return new Date(Date.now() + state.utcOffsetSeconds * 1000).toISOString().replace('Z', '');
@@ -927,13 +931,18 @@ function renderUVChart(hourly, daily) {
 
     const labels = [];
     const predicted = [];
-    for (let i = todayStart + startHour; i <= todayStart + endHour && i < hourly.time.length; i++) {
-        labels.push(hourly.time[i].substring(11, 16));
-        predicted.push(hourly.uv_index[i] ?? 0);
+    for (let h = startHour; h <= endHour; h++) {
+        const idx = todayStart + h;
+        if (idx >= hourly.time.length) break;
+        const uvVal = hourly.uv_index[idx] ?? 0;
+        for (let q = 0; q < 4; q++) {
+            labels.push(`${String(h).padStart(2, '0')}:${String(q * 15).padStart(2, '0')}`);
+            predicted.push(uvVal);
+        }
     }
 
     const currentHour = locationHour();
-    const currentHourInSlice = currentHour - startHour;
+    const currentQuarterInSlice = (currentHour - startHour) * 4 + Math.floor(locationMinute() / 15);
     const maxUV = Math.max(...predicted);
     const uvInfo = getUVLevel(maxUV);
 
@@ -948,40 +957,42 @@ function renderUVChart(hourly, daily) {
     if (levelEl) { levelEl.innerText = uvInfo.label; levelEl.className = `uv-badge ${uvInfo.cls}`; }
     if (tipEl) tipEl.innerText = uvInfo.tip;
 
-    // Initiële gemeten curve: verleden uren t/m nu (null voor toekomst)
-    const measuredFallback = predicted.map((v, i) => i <= currentHourInSlice ? v : null);
+    // Initiële gemeten curve: verleden kwartieren t/m nu (null voor toekomst)
+    const measuredFallback = predicted.map((v, i) => i <= currentQuarterInSlice ? v : null);
     drawUVChart(canvas, uvInfo, labels, predicted, measuredFallback);
 
     fetchRIVMUV().then(rivm => {
         if (!rivm) return;
 
         // Band(75+k) for k=1..72 = measured UV at UTC slot 03:00 + (k-1)*15min
-        // -1 means not yet measured; later k within an hour = more recent, keep that one
         const utcOffsetMin = (state.utcOffsetSeconds || 0) / 60;
-        const rivmHourly = new Array(24).fill(null);
+        const rivmQuarterly = new Array(96).fill(null);
 
         for (let k = 1; k <= 72; k++) {
             const val = rivm['Band' + (75 + k)];
             if (val === undefined || val === null || val < 0) continue;
             const localMin = 180 + (k - 1) * 15 + utcOffsetMin;
-            const localHour = Math.floor(localMin / 60);
-            if (localHour < 0 || localHour > 23) continue;
-            rivmHourly[localHour] = val;
+            const localQuarter = Math.floor(localMin / 15);
+            if (localQuarter < 0 || localQuarter > 95) continue;
+            rivmQuarterly[localQuarter] = val;
         }
 
         const rivmSliced = [];
         for (let h = startHour; h <= endHour; h++) {
-            rivmSliced.push(rivmHourly[h]);
+            for (let q = 0; q < 4; q++) {
+                rivmSliced.push(rivmQuarterly[h * 4 + q]);
+            }
         }
         if (!rivmSliced.some(v => v !== null)) return;
 
         if (currentEl) {
-            const curLocalHour = locationHour();
-            for (let h = curLocalHour; h >= 0; h--) {
-                if (rivmHourly[h] !== null) {
-                    currentEl.innerText = rivmHourly[h].toFixed(1);
+            const curLocalQuarter = locationHour() * 4 + Math.floor(locationMinute() / 15);
+            let found = false;
+            for (let qIdx = curLocalQuarter; qIdx >= 0 && !found; qIdx--) {
+                if (rivmQuarterly[qIdx] !== null) {
+                    currentEl.innerText = rivmQuarterly[qIdx].toFixed(1);
                     currentEl.title = t('rivm_measured');
-                    break;
+                    found = true;
                 }
             }
         }
