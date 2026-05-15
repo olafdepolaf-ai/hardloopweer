@@ -418,39 +418,19 @@ header {
     text-align: center;
 }
 
-.uv-stats {
+.uv-current-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    width: 100%;
+    justify-content: center;
+    gap: 10px;
     margin-bottom: 16px;
-    gap: 8px;
-}
-
-.uv-stat {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
-.uv-stat-label {
-    font-size: 0.75rem;
-    color: var(--text-secondary);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
 }
 
 .uv-stat-value {
     font-size: 2rem;
     font-weight: 700;
     color: var(--text-primary);
-    line-height: 1.1;
-}
-
-.uv-badge-container {
-    flex: 1;
-    display: flex;
-    justify-content: center;
+    line-height: 1;
 }
 
 .uv-badge {

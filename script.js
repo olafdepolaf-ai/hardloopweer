@@ -662,6 +662,8 @@ function drawUVChart(canvas, uvInfo, labels, predicted, measured, currentHour) {
     if (state.uvChart) state.uvChart.destroy();
 
     const maxPredicted = Math.max(...predicted.filter(v => v !== null && v > 0), 0);
+    const maxMeasured = Math.max(...measured.filter(v => v !== null && v > 0), 0);
+    const chartMax = Math.max(maxPredicted, maxMeasured);
 
     state.uvChart = new Chart(ctx, {
         type: 'line',
@@ -705,19 +707,7 @@ function drawUVChart(canvas, uvInfo, labels, predicted, measured, currentHour) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                legend: {
-                    display: true,
-                    position: 'top',
-                    align: 'end',
-                    labels: {
-                        boxWidth: 24,
-                        padding: 12,
-                        font: { size: 11 },
-                        color: '#5f6368',
-                        usePointStyle: true,
-                        pointStyle: 'line'
-                    }
-                },
+                legend: { display: false },
                 tooltip: {
                     mode: 'index',
                     intersect: false,
@@ -736,7 +726,7 @@ function drawUVChart(canvas, uvInfo, labels, predicted, measured, currentHour) {
                 },
                 y: {
                     min: 0,
-                    suggestedMax: Math.max(maxPredicted + 1, 7),
+                    suggestedMax: Math.max(Math.ceil(chartMax) + 1, 3),
                     grid: { color: 'rgba(0,0,0,0.05)' },
                     ticks: { font: { size: 11 } }
                 }

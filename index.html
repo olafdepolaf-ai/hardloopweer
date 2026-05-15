@@ -109,18 +109,9 @@
 
             <section id="uv-section" class="card">
                 <h3 data-i18n="section_uv">Zonkracht</h3>
-                <div class="uv-stats">
-                    <div class="uv-stat">
-                        <span class="uv-stat-label" data-i18n="uv_now">Nu</span>
-                        <span id="uv-current" class="uv-stat-value">--</span>
-                    </div>
-                    <div id="uv-badge-container" class="uv-badge-container">
-                        <span id="uv-level" class="uv-badge">--</span>
-                    </div>
-                    <div class="uv-stat">
-                        <span class="uv-stat-label" data-i18n="uv_max">Max vandaag</span>
-                        <span id="uv-max" class="uv-stat-value">--</span>
-                    </div>
+                <div class="uv-current-row">
+                    <span id="uv-current" class="uv-stat-value">--</span>
+                    <span id="uv-level" class="uv-badge">--</span>
                 </div>
                 <div class="uv-chart-container">
                     <canvas id="uv-chart"></canvas>
