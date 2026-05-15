@@ -31,7 +31,8 @@ let state = {
     lat: CONFIG.DEFAULT_LAT,
     lon: CONFIG.DEFAULT_LON,
     city: CONFIG.DEFAULT_CITY,
-    chart: null
+    chart: null,
+    uvChart: null
 };
 
 async function init() {
@@ -120,7 +121,7 @@ async function fetchWeather() {
         latitude: state.lat,
         longitude: state.lon,
         current: ['temperature_2m', 'relative_humidity_2m', 'apparent_temperature', 'is_day', 'weather_code', 'wind_speed_10m', 'wind_direction_10m'],
-        hourly: ['temperature_2m', 'weather_code', 'dew_point_2m', 'precipitation'],
+        hourly: ['temperature_2m', 'weather_code', 'dew_point_2m', 'precipitation', 'uv_index'],
         timezone: 'auto',
         forecast_days: 2
     });
@@ -178,6 +179,7 @@ function updateUI(data) {
     updateComfortLevel(dp, current.temperature_2m);
     generateRecommendation(current, dp);
     renderChart(data.hourly);
+    renderUVChart(data.hourly);
 }
 
 function updateComfortLevel(dewPoint, temp) {
@@ -379,6 +381,141 @@ function renderChart(hourly) {
 
     const wrapper = document.querySelector('.chart-scroll-wrapper');
     if (wrapper) wrapper.scrollLeft = 0;
+}
+
+// ---- UV / Zonkracht ----
+
+function wgs84ToRD(lat, lon) {
+    const dφ = 0.36 * (lat - 52.15517440);
+    const dλ = 0.36 * (lon - 5.38720621);
+    const x = 155000
+        + 190094.945 * dλ
+        - 11832.228 * dφ * dλ
+        - 114.221 * Math.pow(dλ, 3)
+        - 32.391 * Math.pow(dφ, 2) * dλ
+        - 2.340 * Math.pow(dφ, 3) * dλ
+        - 0.608 * dφ * Math.pow(dλ, 3);
+    const y = 463000
+        + 309056.544 * dφ
+        + 3638.893 * Math.pow(dλ, 2)
+        - 157.984 * Math.pow(dφ, 2)
+        - 0.054 * Math.pow(dφ, 4)
+        - 9.367 * dφ * Math.pow(dλ, 2)
+        - 0.003 * Math.pow(dλ, 4);
+    return { x: Math.round(x), y: Math.round(y) };
+}
+
+async function fetchRIVMUV() {
+    try {
+        const rd = wgs84ToRD(state.lat, state.lon);
+        const i = Math.round((rd.x + 150000) / 600000 * 900);
+        const j = Math.round((800000 - rd.y) / 700000 * 900);
+        if (i < 0 || i > 900 || j < 0 || j > 900) return null;
+        const url = `https://data.rivm.nl/geo/alo/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&QUERY_LAYERS=rivm_zonkracht&LAYERS=rivm_zonkracht&INFO_FORMAT=application/json&FEATURE_COUNT=1&I=${i}&J=${j}&CRS=EPSG:28992&WIDTH=900&HEIGHT=900&BBOX=-150000,100000,450000,800000`;
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.features?.length > 0) return data.features[0].properties;
+    } catch (e) {
+        console.warn('RIVM UV niet beschikbaar:', e.message);
+    }
+    return null;
+}
+
+function getUVLevel(uv) {
+    if (uv < 1)  return { label: 'Geen',      cls: 'uv-none',      color: '#9E9E9E', tip: 'Geen UV-bescherming nodig voor je run.' };
+    if (uv < 3)  return { label: 'Laag',      cls: 'uv-low',       color: '#57BB8A', tip: 'Weinig risico. Bij langdurig lopen wel smeren.' };
+    if (uv < 6)  return { label: 'Matig',     cls: 'uv-moderate',  color: '#F9AB00', tip: 'Factor 15+ en zonnebril mee. Petje op!' };
+    if (uv < 8)  return { label: 'Hoog',      cls: 'uv-high',      color: '#F57C00', tip: 'Factor 30+ en pet. Loop voor 10u of na 16u.' };
+    if (uv < 11) return { label: 'Zeer hoog', cls: 'uv-very-high', color: '#D93025', tip: 'Factor 50+. Loop vroeg of laat, niet tussen 11–15u.' };
+    return         { label: 'Extreem',         cls: 'uv-extreme',   color: '#7B1FA2', tip: 'Niet hardlopen in de middagzon!' };
+}
+
+function renderUVChart(hourly) {
+    const canvas = document.getElementById('uv-chart');
+    if (!canvas) return;
+
+    const today = new Date().toISOString().substring(0, 10);
+    const todayStart = hourly.time.findIndex(t => t.startsWith(today));
+    if (todayStart === -1) return;
+
+    const hours = [];
+    const uvVals = [];
+    for (let i = todayStart; i < todayStart + 24 && i < hourly.time.length; i++) {
+        hours.push(new Date(hourly.time[i]).getHours() + ':00');
+        uvVals.push(hourly.uv_index[i] ?? 0);
+    }
+
+    const currentHour = new Date().getHours();
+    const maxUV = Math.max(...uvVals);
+    const uvInfo = getUVLevel(maxUV);
+
+    const currentEl = document.getElementById('uv-current');
+    const maxEl = document.getElementById('uv-max');
+    const levelEl = document.getElementById('uv-level');
+    const tipEl = document.getElementById('uv-tip');
+
+    if (currentEl) currentEl.innerText = (uvVals[currentHour] ?? 0).toFixed(1);
+    if (maxEl) maxEl.innerText = maxUV.toFixed(1);
+    if (levelEl) { levelEl.innerText = uvInfo.label; levelEl.className = `uv-badge ${uvInfo.cls}`; }
+    if (tipEl) tipEl.innerText = uvInfo.tip;
+
+    // Overschrijf "Nu" met werkelijk gemeten RIVM-waarde als beschikbaar
+    fetchRIVMUV().then(rivm => {
+        if (rivm && rivm.Band1 > 0 && currentEl) {
+            currentEl.innerText = rivm.Band1.toFixed(1);
+            currentEl.title = 'Gemeten door RIVM';
+        }
+    });
+
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createLinearGradient(0, 0, 0, canvas.offsetHeight || 180);
+    grad.addColorStop(0, uvInfo.color + 'bb');
+    grad.addColorStop(1, uvInfo.color + '0a');
+
+    if (state.uvChart) state.uvChart.destroy();
+
+    state.uvChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: hours,
+            datasets: [{
+                data: uvVals,
+                borderColor: uvInfo.color,
+                backgroundColor: grad,
+                fill: true,
+                tension: 0.4,
+                pointRadius: uvVals.map((_, i) => i === currentHour ? 5 : 0),
+                pointBackgroundColor: '#fff',
+                pointBorderColor: uvInfo.color,
+                pointBorderWidth: 2,
+                borderWidth: 2.5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    callbacks: { label: ctx => `UV: ${ctx.parsed.y.toFixed(1)}` }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { maxTicksLimit: 8, font: { size: 11 } }
+                },
+                y: {
+                    min: 0,
+                    suggestedMax: Math.max(maxUV + 0.5, 3),
+                    grid: { color: 'rgba(0,0,0,0.05)' },
+                    ticks: { font: { size: 11 } }
+                }
+            }
+        }
+    });
 }
 
 init();
