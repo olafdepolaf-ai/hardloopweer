@@ -44,23 +44,29 @@ body {
 }
 
 header {
-    margin-bottom: 24px;
+    background: var(--card-bg);
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    box-shadow: var(--elevation-1);
 }
-
 
 .header-main {
     display: flex;
     align-items: center;
     gap: 16px;
-    margin-bottom: 20px;
-    padding: 0 8px;
+    margin-bottom: 0;
+}
+
+.header-main + #search-container {
+    margin-top: 14px;
 }
 
 .search-toggle {
     margin-left: auto;
     border: none;
-    background: rgba(255, 255, 255, 0.2);
-    color: #ffffff;
+    background: #f1f3f4;
+    color: var(--text-secondary);
     cursor: pointer;
     width: 40px;
     height: 40px;
@@ -68,16 +74,18 @@ header {
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s;
+    transition: background 0.2s, color 0.2s;
     flex-shrink: 0;
 }
 
 .search-toggle:hover {
-    background: rgba(255, 255, 255, 0.32);
+    background: #e8eaed;
+    color: var(--text-primary);
 }
 
 .search-toggle.active {
-    background: rgba(255, 255, 255, 0.35);
+    background: #e8eaed;
+    color: var(--accent-color);
 }
 
 .search-toggle i[data-lucide] {
@@ -86,15 +94,16 @@ header {
 }
 
 .logo {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
     object-fit: contain;
+    border-radius: 10px;
 }
 
 .header-main h1 {
     font-size: 1.8rem;
     font-weight: 600;
-    color: #ffffff;
+    color: var(--text-primary);
 }
 
 .search-container {
@@ -161,14 +170,21 @@ header {
     margin-right: auto;
 }
 
+.card h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+    width: 100%;
+}
+
 #weather-hero.card {
     align-items: stretch;
-    /* Keep hero content layout */
 }
 
 #running-recommendation {
-    background: var(--card-bg);
-    /* Ensuring it's white */
+    align-items: flex-start;
+    text-align: left;
 }
 
 .hero-left {
@@ -237,7 +253,7 @@ header {
     display: flex;
     gap: 16px;
     flex-wrap: wrap;
-    margin-top: 4px;
+    margin-top: 14px;
 }
 
 .metric-item {

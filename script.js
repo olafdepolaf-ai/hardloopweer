@@ -430,7 +430,7 @@ function generateRecommendation(current, dewPoint, uvIndex = 0) {
     const secondaryIssues = issues.filter(i => i.score < 3);
 
     const clothingItems = buildClothingItems(temp, bft, uvIndex);
-    const clothingHTML = `<strong>${t('clothing_title')}</strong><ul class="clothing-list">${clothingItems.map(i => `<li>${i}</li>`).join('')}</ul>`;
+    const clothingHTML = `<ul class="clothing-list">${clothingItems.map(i => `<li>${i}</li>`).join('')}</ul>`;
 
     let badge, type, tip;
 
@@ -462,7 +462,7 @@ function generateRecommendation(current, dewPoint, uvIndex = 0) {
         els.recommendationBadge.innerText = badge;
         els.recommendationBadge.className = `badge ${type}`;
     }
-    if (els.clothingTip) els.clothingTip.innerHTML = `<p>${tip}</p>`;
+    if (els.clothingTip) els.clothingTip.innerHTML = tip;
 
     if (els.warnings) {
         const showWarnings = maxScore >= 3 && secondaryIssues.length > 0
