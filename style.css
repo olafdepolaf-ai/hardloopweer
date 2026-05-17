@@ -562,7 +562,7 @@ header {
 }
 
 .dot.temp {
-    background-color: #1a1b1e;
+    background-color: #D93025;
 }
 
 .dot.rain {
@@ -583,8 +583,16 @@ header {
 }
 
 .chart-container {
-    height: 250px;
+    height: 220px;
     width: 100%;
+}
+
+.chart-container-rain {
+    height: 120px;
+}
+
+.chart-legend-rain {
+    margin-top: 8px;
 }
 
 /* UV / Zonkracht */

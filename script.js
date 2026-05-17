@@ -68,7 +68,8 @@ let state = {
     lat: CONFIG.DEFAULT_LAT,
     lon: CONFIG.DEFAULT_LON,
     city: CONFIG.DEFAULT_CITY,
-    chart: null,
+    tempChart: null,
+    rainChart: null,
     uvChart: null,
     utcOffsetSeconds: 3600,
     timezone: 'Europe/Amsterdam',
@@ -378,7 +379,7 @@ function updateTime() {
 
 function updateBuienradar() {
     if (!els.buienradarFrame) return;
-    els.buienradarFrame.src = `https://gadgets.buienradar.nl/gadget/zoommap/?lat=${state.lat}&lng=${state.lon}&overname=2&zoom=10&zoomlevel=0&pins=0&naam=${encodeURIComponent(state.city)}`;
+    els.buienradarFrame.src = `https://gadgets.buienradar.nl/gadget/zoommap/?lat=${state.lat}&lng=${state.lon}&overname=2&zoom=10&pins=0&naam=${encodeURIComponent(state.city)}`;
 }
 
 async function searchCity(query) {
@@ -748,81 +749,91 @@ function renderChart(hourly, minutely15) {
         }
     }
 
-    if (state.chart) state.chart.destroy();
+    const tooltipOpts = {
+        mode: 'index',
+        intersect: false,
+        callbacks: {
+            title: items => timestamps[items[0]?.dataIndex] ?? '',
+            label: item => item.parsed.y !== null
+                ? `${item.dataset.label}: ${item.parsed.y % 1 === 0 ? item.parsed.y : item.parsed.y.toFixed(1)}`
+                : null
+        },
+        filter: item => item.parsed.y !== null
+    };
+    const xAxis = {
+        grid: { display: true, color: 'rgba(0,0,0,0.05)' },
+        ticks: { maxRotation: 0, minRotation: 0, font: { size: 11 } }
+    };
 
-    state.chart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [
-                {
-                    type: 'line',
+    // Temperatuurgrafiek
+    if (state.tempChart) state.tempChart.destroy();
+    const tempCanvas = document.getElementById('temp-chart');
+    if (tempCanvas) {
+        state.tempChart = new Chart(tempCanvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
                     label: 'Temp (°C)',
                     data: temps,
-                    borderColor: '#1a1b1e',
-                    backgroundColor: 'rgba(0,0,0,0.07)',
+                    borderColor: '#D93025',
+                    backgroundColor: 'rgba(217,48,37,0.08)',
                     fill: true,
                     tension: 0.4,
                     pointRadius: 0,
-                    spanGaps: true,
-                    yAxisID: 'y',
-                    order: 1
-                },
-                {
-                    type: 'bar',
-                    label: 'Regen (mm)',
-                    data: rain,
-                    backgroundColor: 'rgba(26, 115, 232, 0.75)',
-                    borderWidth: 0,
-                    borderRadius: 2,
-                    barThickness: 4,
-                    yAxisID: 'y1',
-                    order: 0
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                    callbacks: {
-                        title: items => timestamps[items[0]?.dataIndex] ?? '',
-                        label: item => item.parsed.y !== null
-                            ? `${item.dataset.label}: ${item.parsed.y % 1 === 0 ? item.parsed.y : item.parsed.y.toFixed(1)}`
-                            : null
-                    },
-                    filter: item => item.parsed.y !== null
+                    spanGaps: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: tooltipOpts },
+                scales: {
+                    x: { ...xAxis, ticks: { ...xAxis.ticks, display: false } },
+                    y: {
+                        position: 'left',
+                        title: { display: true, text: '°C', font: { weight: 'bold', size: 13 }, color: '#D93025' }
+                    }
                 }
             },
-            scales: {
-                x: {
-                    grid: { display: true, color: 'rgba(0,0,0,0.05)' },
-                    ticks: { maxRotation: 0, minRotation: 0, font: { size: 11 } }
-                },
-                y: {
-                    display: true,
-                    position: 'left',
-                    title: { display: true, text: '°C', font: { weight: 'bold', size: 14 }, color: '#1a1b1e' }
-                },
-                y1: {
-                    display: true,
-                    position: 'right',
-                    min: 0,
-                    suggestedMax: 2,
-                    title: { display: true, text: 'mm', font: { weight: 'bold', size: 14 }, color: '#1a1b1e' },
-                    grid: { display: false }
-                }
-            }
-        },
-        plugins: [crosshairPlugin]
-    });
+            plugins: [crosshairPlugin]
+        });
+    }
 
-    const wrapper = document.querySelector('.chart-scroll-wrapper');
-    if (wrapper) wrapper.scrollLeft = 0;
+    // Regengrafiek
+    if (state.rainChart) state.rainChart.destroy();
+    const rainCanvas = document.getElementById('rain-chart');
+    if (rainCanvas) {
+        state.rainChart = new Chart(rainCanvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Regen (mm)',
+                    data: rain,
+                    backgroundColor: 'rgba(26,115,232,0.75)',
+                    borderWidth: 0,
+                    borderRadius: 2,
+                    barThickness: 'flex'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: tooltipOpts },
+                scales: {
+                    x: xAxis,
+                    y: {
+                        position: 'left',
+                        min: 0,
+                        suggestedMax: 2,
+                        title: { display: true, text: 'mm', font: { weight: 'bold', size: 13 }, color: '#1a73e8' }
+                    }
+                }
+            },
+            plugins: [crosshairPlugin]
+        });
+    }
 }
 
 // ---- UV / Zonkracht ----
@@ -950,12 +961,23 @@ function getUVLevel(uv) {
 }
 
 function renderUVChart(hourly, daily) {
+    try {
+        _renderUVChart(hourly, daily);
+    } catch (e) {
+        console.error('UV-grafiek fout:', e);
+    }
+}
+
+function _renderUVChart(hourly, daily) {
     const canvas = document.getElementById('uv-chart');
     if (!canvas) return;
 
+    const uvIndex = hourly?.uv_index ?? [];
+
     const today = locationISO().substring(0, 10);
-    const todayStart = hourly.time.findIndex(t => t.startsWith(today));
-    if (todayStart === -1) return;
+    // Try today first; if not found try the first available date
+    let todayStart = hourly.time.findIndex(t => t.startsWith(today));
+    if (todayStart === -1) todayStart = 0;
 
     // X-axis window: 1h before sunrise → 1h after sunset, min 12h
     let startHour = 5, endHour = 21;
@@ -987,7 +1009,7 @@ function renderUVChart(hourly, daily) {
     for (let h = startHour; h <= endHour; h++) {
         const idx = todayStart + h;
         if (idx >= hourly.time.length) break;
-        const uvVal = hourly.uv_index[idx] ?? 0;
+        const uvVal = uvIndex[idx] ?? 0;
         for (let q = 0; q < 4; q++) omPredicted.push(uvVal);
     }
 
@@ -1001,7 +1023,7 @@ function renderUVChart(hourly, daily) {
 
     // Initial UI from Open-Meteo
     const maxUVom = Math.max(...omPredicted);
-    const currentUVValue = hourly.uv_index[todayStart + currentHour] ?? 0;
+    const currentUVValue = uvIndex[todayStart + currentHour] ?? 0;
     const uvInfoCur = getUVLevel(currentUVValue);
     if (currentEl) currentEl.innerText = currentUVValue.toFixed(1);
     if (maxEl) maxEl.innerText = maxUVom.toFixed(1);

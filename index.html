@@ -69,7 +69,7 @@
                 <section id="weather-hero" class="card">
                     <div class="hero-content">
                         <div class="hero-left">
-                            <img id="weather-icon" src="" alt="" class="weather-icon-main" width="80" height="80">
+                            <img id="weather-icon" src="https://cdn.jsdelivr.net/npm/@meteocons/svg@0.1.0/fill/overcast.svg" alt="" class="weather-icon-main" width="80" height="80" onerror="this.src='https://cdn.jsdelivr.net/npm/@meteocons/svg@0.1.0/fill/overcast.svg'">
                             <span id="current-temp">--°</span>
                         </div>
                         <div class="hero-right">
@@ -135,12 +135,15 @@
             <section id="forecast-mini" class="card">
                 <div class="chart-legend">
                     <div class="legend-item"><span class="dot temp"></span> <span data-i18n="legend_temp">Temperatuur (°C)</span></div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="temp-chart"></canvas>
+                </div>
+                <div class="chart-legend chart-legend-rain">
                     <div class="legend-item"><span class="dot rain"></span> <span data-i18n="legend_rain">Regen (mm)</span></div>
                 </div>
-                <div class="chart-scroll-wrapper">
-                    <div class="chart-container">
-                        <canvas id="temp-chart"></canvas>
-                    </div>
+                <div class="chart-container chart-container-rain">
+                    <canvas id="rain-chart"></canvas>
                 </div>
             </section>
 
