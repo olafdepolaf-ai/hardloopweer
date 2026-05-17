@@ -699,34 +699,35 @@ function renderChart(hourly, minutely15) {
     const ctx = canvas.getContext('2d');
     const nowISO = locationISO().substring(0, 14) + '00';
 
-    const labels = [], temps = [], rain = [];
+    const labels = [], temps = [], rain = [], timestamps = [];
 
     if (minutely15?.time?.length) {
         let m15Start = minutely15.time.findIndex(t => t >= nowISO);
         if (m15Start === -1) m15Start = 0;
 
+        let lastHourTemp = null;
         for (let i = 0; i < 48; i++) {
             const idx = m15Start + i;
             if (idx >= minutely15.time.length) break;
             const ts = minutely15.time[idx];
             const min = ts.substring(14, 16);
             const hour = parseInt(ts.substring(11, 13), 10);
+            const day = new Date(ts).toLocaleDateString(state.lang + '-' + state.lang.toUpperCase(), { weekday: 'short' });
 
-            // Label every 4 hours, horizontal
-            if (min === '00' && hour % 4 === 0) {
-                const day = new Date(ts).toLocaleDateString('nl-NL', { weekday: 'short' });
-                labels.push(hour === 0 ? `${day} 0:00` : `${hour}:00`);
-            } else {
-                labels.push('');
-            }
+            // Label every 4 hours
+            labels.push(min === '00' && hour % 4 === 0
+                ? (hour === 0 ? `${day} 0:00` : `${hour}:00`)
+                : '');
 
-            // Temperature only at full hours (spanGaps draws the line between them)
+            // Tooltip timestamp: always show exact time
+            timestamps.push(hour === 0 ? `${day} 0:${min}` : `${hour}:${min}`);
+
+            // Temperature: update at each full hour, repeat for quarters
             if (min === '00') {
                 const hIdx = hourly.time.findIndex(t => t.startsWith(ts.substring(0, 13)));
-                temps.push(hIdx !== -1 ? hourly.temperature_2m[hIdx] : null);
-            } else {
-                temps.push(null);
+                lastHourTemp = hIdx !== -1 ? hourly.temperature_2m[hIdx] : null;
             }
+            temps.push(lastHourTemp);
 
             const p = minutely15.precipitation[idx] || 0;
             rain.push(p > 0 ? p : null);
@@ -738,8 +739,9 @@ function renderChart(hourly, minutely15) {
         for (let i = startIndex; i < startIndex + 12; i++) {
             if (hourly.temperature_2m[i] === undefined) break;
             const hour = parseInt(hourly.time[i].substring(11, 13), 10);
-            const day = new Date(hourly.time[i]).toLocaleDateString('nl-NL', { weekday: 'short' });
+            const day = new Date(hourly.time[i]).toLocaleDateString(state.lang + '-' + state.lang.toUpperCase(), { weekday: 'short' });
             labels.push(hour % 4 === 0 ? (hour === 0 ? `${day} 0:00` : `${hour}:00`) : '');
+            timestamps.push(hour === 0 ? `${day} 0:00` : `${hour}:00`);
             temps.push(hourly.temperature_2m[i]);
             const p = hourly.precipitation[i] || 0;
             rain.push(p > 0 ? p : null);
@@ -787,6 +789,12 @@ function renderChart(hourly, minutely15) {
                 tooltip: {
                     mode: 'index',
                     intersect: false,
+                    callbacks: {
+                        title: items => timestamps[items[0]?.dataIndex] ?? '',
+                        label: item => item.parsed.y !== null
+                            ? `${item.dataset.label}: ${item.parsed.y % 1 === 0 ? item.parsed.y : item.parsed.y.toFixed(1)}`
+                            : null
+                    },
                     filter: item => item.parsed.y !== null
                 }
             },
