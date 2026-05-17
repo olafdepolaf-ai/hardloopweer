@@ -888,8 +888,8 @@ function renderChart(hourly, minutely15) {
             series: [{ name: '%', data: humidities }],
             xaxis: { ...apexXaxis },
             yaxis: {
-                min: 0, max: 100, tickAmount: 4,
-                labels: { formatter: v => Math.round(v), style: { fontSize: '11px' } }
+                labels: { formatter: v => Math.round(v), style: { fontSize: '11px' } },
+                tickAmount: 4
             },
             colors: [cssVar('--humidity') || '#00897B'],
             fill: { type: 'gradient', gradient: { opacityFrom: 0.15, opacityTo: 0.02 } },
