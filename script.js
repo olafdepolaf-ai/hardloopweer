@@ -707,6 +707,7 @@ function generateRecommendation(current, dewPoint, uvIndex = 0) {
 function chartTheme() {
     const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     return {
+        canvasBg:          dark ? '#1a1b1e'                : '#ffffff',
         gridColor:         dark ? 'rgba(255,255,255,0.1)'  : 'rgba(0,0,0,0.06)',
         tickColor:         dark ? 'rgba(255,255,255,0.6)'  : 'rgba(0,0,0,0.55)',
         tooltipBg:         dark ? 'rgba(25,25,25,0.97)'   : 'rgba(255,255,255,0.97)',
@@ -801,7 +802,7 @@ function renderChart(hourly, minutely15) {
             data: {
                 labels,
                 datasets: [{
-                    label: 'Temp (°C)',
+                    label: '°C',
                     data: temps,
                     borderColor: '#D93025',
                     backgroundColor: 'rgba(217,48,37,0.08)',
@@ -816,16 +817,19 @@ function renderChart(hourly, minutely15) {
                 maintainAspectRatio: false,
                 plugins: { legend: { display: false }, tooltip: tooltipOpts },
                 scales: {
-                    x: { ...xAxis, ticks: { ...xAxis.ticks, display: false } },
+                    x: xAxis,
                     y: {
                         position: 'left',
                         grid: { color: theme.gridColor },
-                        ticks: { color: theme.tickColor },
-                        title: { display: true, text: '°C', font: { weight: 'bold', size: 13 }, color: '#D93025' }
+                        ticks: {
+                            color: theme.tickColor,
+                            precision: 0,
+                            callback: v => Number.isInteger(v) ? v : null
+                        }
                     }
                 }
             },
-            plugins: [crosshairPlugin]
+            plugins: [canvasBgPlugin, crosshairPlugin]
         });
     }
 
@@ -838,7 +842,7 @@ function renderChart(hourly, minutely15) {
             data: {
                 labels,
                 datasets: [{
-                    label: 'Regen (mm)',
+                    label: 'mm',
                     data: rain,
                     backgroundColor: 'rgba(26,115,232,0.75)',
                     borderWidth: 0,
@@ -855,14 +859,13 @@ function renderChart(hourly, minutely15) {
                     y: {
                         position: 'left',
                         min: 0,
-                        suggestedMax: 2,
+                        max: 3,
                         grid: { color: theme.gridColor },
-                        ticks: { color: theme.tickColor },
-                        title: { display: true, text: 'mm', font: { weight: 'bold', size: 13 }, color: '#1a73e8' }
+                        ticks: { color: theme.tickColor }
                     }
                 }
             },
-            plugins: [crosshairPlugin]
+            plugins: [canvasBgPlugin, crosshairPlugin]
         });
     }
 }
@@ -882,6 +885,17 @@ function uvZoneColor(v) {
     if (v < 6.5) return '#F57C00';
     return '#D93025';
 }
+
+const canvasBgPlugin = {
+    id: 'canvasBg',
+    beforeDraw(chart) {
+        const { ctx, width, height } = chart;
+        ctx.save();
+        ctx.fillStyle = chartTheme().canvasBg;
+        ctx.fillRect(0, 0, width, height);
+        ctx.restore();
+    }
+};
 
 const crosshairPlugin = {
     id: 'crosshair',
@@ -1178,7 +1192,7 @@ function drawUVChart(canvas, labels, predicted, measured) {
                 }
             }
         },
-        plugins: [uvAreaFillPlugin, crosshairPlugin]
+        plugins: [canvasBgPlugin, uvAreaFillPlugin, crosshairPlugin]
     });
 }
 
