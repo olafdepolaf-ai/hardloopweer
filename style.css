@@ -867,3 +867,15 @@ i[data-lucide] {
         min-width: 100%;
     }
 }
+
+.debug-panel {
+    font-size: 10px;
+    font-family: monospace;
+    line-height: 2;
+    opacity: 0.55;
+    padding: 10px 16px 28px;
+    word-break: break-all;
+    border-top: 1px solid rgba(128, 128, 128, 0.2);
+    margin-top: 4px;
+}
+.debug-panel:empty { display: none; }

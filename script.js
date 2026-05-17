@@ -32,6 +32,8 @@ function applyTranslations() {
     if (langSelect) langSelect.value = state.lang;
 }
 
+const DEBUG = true;
+
 const CONFIG = {
     API_URL: 'https://api.open-meteo.com/v1/forecast',
     GEO_API_URL: 'https://geocoding-api.open-meteo.com/v1/search',
@@ -73,7 +75,15 @@ let state = {
     uvChart: null,
     utcOffsetSeconds: 3600,
     timezone: 'Europe/Amsterdam',
-    lang: detectLanguage()
+    lang: detectLanguage(),
+    _debug: {
+        geoSource: 'default',
+        uvSource: 'open-meteo',
+        rdX: null, rdY: null, wmsI: null, wmsJ: null,
+        rivmStatus: '–',
+        temp: null, feelsLike: null, wind: null, humidity: null, dewPoint: null,
+        uvCurrent: null, uvMax: null, weatherCode: null
+    }
 };
 
 // Current hour at the searched location (not device local time)
@@ -298,21 +308,26 @@ async function init() {
         }
     });
 
+    if (DEBUG) renderDebug();
+
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 state.lat = pos.coords.latitude;
                 state.lon = pos.coords.longitude;
+                if (DEBUG) { state._debug.geoSource = 'GPS ✓'; renderDebug(); }
                 fetchWeather();
                 updateBuienradar();
                 reverseGeocode(state.lat, state.lon);
                 onLocationGranted();
             },
             () => {
+                if (DEBUG) { state._debug.geoSource = 'default (geen toestemming)'; renderDebug(); }
                 fetchWeather();
             }
         );
     } else {
+        if (DEBUG) { state._debug.geoSource = 'default (geen geo-API)'; renderDebug(); }
         fetchWeather();
     }
 
@@ -360,6 +375,7 @@ async function init() {
         navigator.geolocation.getCurrentPosition((pos) => {
             state.lat = pos.coords.latitude;
             state.lon = pos.coords.longitude;
+            if (DEBUG) { state._debug.geoSource = 'GPS ✓ (handmatig)'; renderDebug(); }
             fetchWeather();
             updateBuienradar();
             reverseGeocode(state.lat, state.lon);
@@ -502,6 +518,15 @@ function updateUI(data) {
     state._lastDaily = data.daily;
     renderChart(data.hourly, data.minutely_15);
     renderUVChart(data.hourly, data.daily);
+    if (DEBUG) {
+        state._debug.temp = Math.round(current.temperature_2m);
+        state._debug.feelsLike = Math.round(current.apparent_temperature);
+        state._debug.wind = bft;
+        state._debug.humidity = Math.round(current.relative_humidity_2m);
+        state._debug.dewPoint = Math.round(dp);
+        state._debug.weatherCode = current.weather_code;
+        renderDebug();
+    }
     fetchWeatherAlerts().then(renderAlerts);
 }
 
@@ -936,19 +961,48 @@ function wgs84ToRD(lat, lon) {
     return { x: Math.round(x), y: Math.round(y) };
 }
 
+function renderDebug() {
+    if (!DEBUG) return;
+    const el = document.getElementById('debug-panel');
+    if (!el) return;
+    const d = state._debug;
+    el.innerHTML = [
+        `<b>Geo</b>: ${d.geoSource} | ${state.lat.toFixed(5)}°N ${state.lon.toFixed(5)}°E | ${state.city}`,
+        `<b>RD New</b>: x=${d.rdX ?? '–'} y=${d.rdY ?? '–'} &nbsp; <b>WMS I/J</b>: ${d.wmsI ?? '–'} / ${d.wmsJ ?? '–'}`,
+        `<b>RIVM</b>: ${d.rivmStatus} &nbsp; <b>UV model</b>: <b>${d.uvSource}</b>`,
+        `<b>UV huidig</b>: ${d.uvCurrent ?? '–'} | <b>UV max verwacht</b>: ${d.uvMax ?? '–'}`,
+        `<b>Temp</b>: ${d.temp ?? '–'}°C | <b>Gevoel</b>: ${d.feelsLike ?? '–'}°C | <b>Wind</b>: ${d.wind ?? '–'} Bft`,
+        `<b>Vocht</b>: ${d.humidity ?? '–'}% | <b>Dauw</b>: ${d.dewPoint ?? '–'}°C | <b>WC</b>: ${d.weatherCode ?? '–'}`
+    ].join('<br>');
+}
+
 async function fetchRIVMUV() {
     try {
         const rd = wgs84ToRD(state.lat, state.lon);
-        if (rd.x < -150000 || rd.x > 450000 || rd.y < 100000 || rd.y > 800000) return null;
+        if (DEBUG) { state._debug.rdX = rd.x; state._debug.rdY = rd.y; renderDebug(); }
+        if (rd.x < -150000 || rd.x > 450000 || rd.y < 100000 || rd.y > 800000) {
+            if (DEBUG) { state._debug.rivmStatus = 'buiten NL BBOX'; renderDebug(); }
+            return null;
+        }
         const I = Math.round((rd.x + 150000) / 600000 * 900);
         const J = Math.round((800000 - rd.y)  / 700000 * 900);
-        if (I < 0 || I >= 900 || J < 0 || J >= 900) return null;
+        if (DEBUG) { state._debug.wmsI = I; state._debug.wmsJ = J; renderDebug(); }
+        if (I < 0 || I >= 900 || J < 0 || J >= 900) {
+            if (DEBUG) { state._debug.rivmStatus = 'I/J buiten bereik'; renderDebug(); }
+            return null;
+        }
         const url = `https://data.rivm.nl/geo/alo/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&QUERY_LAYERS=rivm_zonkracht&LAYERS=rivm_zonkracht&INFO_FORMAT=application/json&FEATURE_COUNT=1&I=${I}&J=${J}&CRS=EPSG:28992&WIDTH=900&HEIGHT=900&BBOX=-150000,100000,450000,800000`;
+        if (DEBUG) { state._debug.rivmStatus = 'ophalen…'; renderDebug(); }
         const res = await fetch(url);
         const data = await res.json();
-        if (data.features?.length > 0) return data.features[0].properties;
+        if (data.features?.length > 0) {
+            if (DEBUG) { state._debug.rivmStatus = `ok (${data.features.length} feature(s))`; renderDebug(); }
+            return data.features[0].properties;
+        }
+        if (DEBUG) { state._debug.rivmStatus = 'geen features in response'; renderDebug(); }
     } catch (e) {
         console.warn('RIVM UV niet beschikbaar:', e.message);
+        if (DEBUG) { state._debug.rivmStatus = 'fout: ' + e.message; renderDebug(); }
     }
     return null;
 }
@@ -1049,6 +1103,7 @@ function _renderUVChart(hourly, daily) {
     // Initial draw: Open-Meteo predicted + measured up to now
     const omMeasured = omPredicted.map((v, i) => i <= currentQuarterInSlice ? v : null);
     drawUVChart(canvas, labels, omPredicted, omMeasured);
+    if (DEBUG) { state._debug.uvSource = 'open-meteo'; state._debug.uvCurrent = currentUVValue.toFixed(1); state._debug.uvMax = maxUVom.toFixed(1); renderDebug(); }
 
     fetchRIVMUV().then(rivm => {
         if (!rivm) return;
@@ -1065,11 +1120,15 @@ function _renderUVChart(hourly, daily) {
                 sliceMeasured.push(rivmMeasured[h * 4 + q] ?? null);
             }
         }
-        if (!sliceExpected.some(v => v !== null)) return;
+        if (!sliceExpected.some(v => v !== null)) {
+            if (DEBUG) { state._debug.rivmStatus += ' (slice leeg)'; renderDebug(); }
+            return;
+        }
 
         // Max UV from RIVM expected
         const maxUVrivm = Math.max(...sliceExpected.filter(v => v !== null), 0);
         if (maxEl) maxEl.innerText = maxUVrivm.toFixed(1);
+        if (DEBUG) { state._debug.uvSource = 'rivm'; state._debug.uvMax = maxUVrivm.toFixed(1); renderDebug(); }
 
         // Current UV: latest RIVM measured, else RIVM expected for current quarter
         const curQuarter = currentHour * 4 + Math.floor(locationMinute() / 15);
@@ -1084,6 +1143,7 @@ function _renderUVChart(hourly, daily) {
             const uvInfoRivm = getUVLevel(curVal);
             if (levelEl) { levelEl.innerText = uvInfoRivm.label; levelEl.className = `uv-badge ${uvInfoRivm.cls}${uvInfoRivm.cls === 'uv-none' ? ' hidden' : ''}`; }
             if (tipEl) tipEl.innerText = uvInfoRivm.tip;
+            if (DEBUG) { state._debug.uvCurrent = curVal.toFixed(1); renderDebug(); }
         }
 
         drawUVChart(canvas, labels, sliceExpected, sliceMeasured);
