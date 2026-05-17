@@ -35,6 +35,8 @@ header {
     border-radius: var(--radius-lg, 24px);
     padding: clamp(12px, 3.5vw, 16px) clamp(12px, 3.5vw, 20px);
     margin-bottom: 20px;
+    position: relative;
+    z-index: 50;
 }
 
 .header-main {
