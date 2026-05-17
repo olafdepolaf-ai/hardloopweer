@@ -717,17 +717,12 @@ function chartTheme() {
 }
 
 function renderChart(hourly, minutely15) {
-    const canvas = document.getElementById('temp-chart');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
     const nowISO = locationISO().substring(0, 14) + '00';
-
     const labels = [], temps = [], rain = [], timestamps = [];
 
     if (minutely15?.time?.length) {
         let m15Start = minutely15.time.findIndex(t => t >= nowISO);
         if (m15Start === -1) m15Start = 0;
-
         let lastHourTemp = null;
         for (let i = 0; i < 48; i++) {
             const idx = m15Start + i;
@@ -736,27 +731,19 @@ function renderChart(hourly, minutely15) {
             const min = ts.substring(14, 16);
             const hour = parseInt(ts.substring(11, 13), 10);
             const day = new Date(ts).toLocaleDateString(state.lang + '-' + state.lang.toUpperCase(), { weekday: 'short' });
-
-            // Label every 4 hours
             labels.push(min === '00' && hour % 4 === 0
                 ? (hour === 0 ? `${day} 0:00` : `${hour}:00`)
                 : '');
-
-            // Tooltip timestamp: always show exact time
             timestamps.push(hour === 0 ? `${day} 0:${min}` : `${hour}:${min}`);
-
-            // Temperature: update at each full hour, repeat for quarters
             if (min === '00') {
                 const hIdx = hourly.time.findIndex(t => t.startsWith(ts.substring(0, 13)));
                 lastHourTemp = hIdx !== -1 ? hourly.temperature_2m[hIdx] : null;
             }
             temps.push(lastHourTemp);
-
             const p = minutely15.precipitation[idx] || 0;
-            rain.push(p > 0 ? p : null);
+            rain.push(p > 0 ? p : 0);
         }
     } else {
-        // Hourly fallback
         let startIndex = hourly.time.findIndex(t => t >= nowISO);
         if (startIndex === -1) startIndex = 0;
         for (let i = startIndex; i < startIndex + 12; i++) {
@@ -766,107 +753,83 @@ function renderChart(hourly, minutely15) {
             labels.push(hour % 4 === 0 ? (hour === 0 ? `${day} 0:00` : `${hour}:00`) : '');
             timestamps.push(hour === 0 ? `${day} 0:00` : `${hour}:00`);
             temps.push(hourly.temperature_2m[i]);
-            const p = hourly.precipitation[i] || 0;
-            rain.push(p > 0 ? p : null);
+            rain.push(Math.max(0, hourly.precipitation[i] || 0));
         }
     }
 
-    const theme = chartTheme();
-    const tooltipOpts = {
-        mode: 'index',
-        intersect: false,
-        backgroundColor: theme.tooltipBg,
-        titleColor: theme.tooltipText,
-        bodyColor: theme.tooltipText,
-        borderColor: theme.tooltipBorder,
-        borderWidth: 1,
-        callbacks: {
-            title: items => timestamps[items[0]?.dataIndex] ?? '',
-            label: item => item.parsed.y !== null
-                ? `${item.dataset.label}: ${item.parsed.y % 1 === 0 ? item.parsed.y : item.parsed.y.toFixed(1)}`
-                : null
-        },
-        filter: item => item.parsed.y !== null
+    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    const apexBase = {
+        toolbar: { show: false },
+        zoom: { enabled: false },
+        animations: { enabled: false },
+        background: 'transparent',
+        fontFamily: 'Inter, sans-serif',
+        syncId: 'weather'
     };
-    const xAxis = {
-        grid: { display: true, color: theme.gridColor },
-        ticks: { maxRotation: 0, minRotation: 0, font: { size: 11 }, color: theme.tickColor }
+    const apexTheme = { mode: dark ? 'dark' : 'light' };
+    const apexXaxis = {
+        categories: labels,
+        labels: { rotate: 0, style: { fontSize: '11px' }, hideOverlappingLabels: false },
+        axisTicks: { show: false },
+        tooltip: { enabled: false }
     };
+    const apexGrid = {
+        borderColor: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)',
+        xaxis: { lines: { show: false } }
+    };
+    const xFormatter = (_, opts) => timestamps[opts?.dataPointIndex] ?? '';
 
     // Temperatuurgrafiek
-    if (state.tempChart) state.tempChart.destroy();
-    const tempCanvas = document.getElementById('temp-chart');
-    if (tempCanvas) {
-        state.tempChart = new Chart(tempCanvas.getContext('2d'), {
-            type: 'line',
-            data: {
-                labels,
-                datasets: [{
-                    label: '°C',
-                    data: temps,
-                    borderColor: '#D93025',
-                    backgroundColor: 'rgba(217,48,37,0.08)',
-                    fill: true,
-                    tension: 0.4,
-                    pointRadius: 0,
-                    spanGaps: true
-                }]
+    if (state.tempChart) { state.tempChart.destroy(); state.tempChart = null; }
+    const tempEl = document.getElementById('temp-chart');
+    if (tempEl) {
+        state.tempChart = new ApexCharts(tempEl, {
+            chart: { ...apexBase, type: 'area', height: '100%' },
+            theme: apexTheme,
+            series: [{ name: '°C', data: temps }],
+            xaxis: { ...apexXaxis },
+            yaxis: {
+                labels: { formatter: v => Math.round(v), style: { fontSize: '11px' } },
+                tickAmount: 4
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: tooltipOpts },
-                scales: {
-                    x: xAxis,
-                    y: {
-                        position: 'left',
-                        grid: { color: theme.gridColor },
-                        ticks: {
-                            color: theme.tickColor,
-                            precision: 0,
-                            callback: v => Number.isInteger(v) ? v : null
-                        }
-                    }
-                }
-            },
-            plugins: [canvasBgPlugin, crosshairPlugin]
+            colors: ['#D93025'],
+            fill: { type: 'gradient', gradient: { opacityFrom: 0.18, opacityTo: 0.02 } },
+            stroke: { curve: 'smooth', width: 2 },
+            dataLabels: { enabled: false },
+            legend: { show: false },
+            markers: { size: 0 },
+            tooltip: { shared: true, intersect: false, x: { formatter: xFormatter } },
+            grid: apexGrid
         });
+        state.tempChart.render();
     }
 
     // Regengrafiek
-    if (state.rainChart) state.rainChart.destroy();
-    const rainCanvas = document.getElementById('rain-chart');
-    if (rainCanvas) {
-        state.rainChart = new Chart(rainCanvas.getContext('2d'), {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [{
-                    label: 'mm',
-                    data: rain,
-                    backgroundColor: 'rgba(26,115,232,0.75)',
-                    borderWidth: 0,
-                    borderRadius: 2,
-                    barThickness: 'flex'
-                }]
+    if (state.rainChart) { state.rainChart.destroy(); state.rainChart = null; }
+    const rainEl = document.getElementById('rain-chart');
+    if (rainEl) {
+        state.rainChart = new ApexCharts(rainEl, {
+            chart: { ...apexBase, type: 'bar', height: '100%' },
+            theme: apexTheme,
+            series: [{ name: 'mm', data: rain }],
+            xaxis: { ...apexXaxis },
+            yaxis: {
+                min: 0, max: 3, tickAmount: 3,
+                labels: { formatter: v => v, style: { fontSize: '11px' } }
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false }, tooltip: tooltipOpts },
-                scales: {
-                    x: xAxis,
-                    y: {
-                        position: 'left',
-                        min: 0,
-                        max: 3,
-                        grid: { color: theme.gridColor },
-                        ticks: { color: theme.tickColor }
-                    }
-                }
+            colors: ['#1a73e8'],
+            plotOptions: { bar: { columnWidth: '80%', borderRadius: 2 } },
+            dataLabels: { enabled: false },
+            legend: { show: false },
+            tooltip: {
+                shared: true, intersect: false,
+                x: { formatter: xFormatter },
+                y: { formatter: v => v > 0 ? v.toFixed(1) + ' mm' : '' }
             },
-            plugins: [canvasBgPlugin, crosshairPlugin]
+            grid: apexGrid
         });
+        state.rainChart.render();
     }
 }
 
