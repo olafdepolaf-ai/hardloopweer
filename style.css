@@ -120,6 +120,11 @@ header {
     width: 100%;
     max-width: 400px;
     margin: 14px auto 0;
+    transition: margin-top 0.3s ease;
+}
+
+.search-wrapper:has(.search-container.collapsed) {
+    margin-top: 0;
 }
 
 .search-container {
@@ -333,7 +338,7 @@ header {
     position: relative;
     max-width: 600px;
     width: 100%;
-    margin: 0 auto;
+    margin: 0 auto 20px;
 }
 
 .hero-content {
@@ -356,47 +361,67 @@ header {
     flex: 1 1 0;
 }
 
+.location-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    overflow: hidden;
+}
+
 .location-info h2 {
     font-size: clamp(1rem, 3.5vw, 1.2rem);
     font-weight: 600;
     color: var(--text-primary);
-    text-align: left;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+#current-time {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 #weather-description {
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     color: var(--text-secondary);
     text-transform: capitalize;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    margin-top: 2px;
 }
 
 .weather-metrics {
     display: flex;
-    gap: clamp(10px, 3vw, 16px);
-    flex-wrap: wrap;
+    gap: clamp(6px, 1.5vw, 16px);
+    flex-wrap: nowrap;
     margin-top: 14px;
 }
 
 .metric-item {
     display: flex;
     flex-direction: column;
+    flex: 1 1 0;
+    min-width: 0;
 }
 
 .metric-item .label {
-    font-size: 0.75rem;
+    font-size: clamp(0.6rem, 1.8vw, 0.75rem);
     color: var(--text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    white-space: nowrap;
 }
 
 .metric-item .value {
-    font-size: 1rem;
+    font-size: clamp(0.8rem, 2.8vw, 1rem);
     font-weight: 600;
+    white-space: nowrap;
 }
 
 .wind-display {
@@ -669,11 +694,22 @@ header {
     width: 100%;
     border-radius: var(--radius-md);
     overflow: hidden;
+    position: relative;
+    height: 380px;
+}
+
+@media (min-width: 480px) {
+    .buienradar-container { height: 500px; }
 }
 
 #buienradar-frame {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    height: 100%;
     border: none;
-    display: block;
 }
 
 .buienradar-credit {
@@ -766,6 +802,15 @@ footer {
     font-size: 0.8rem;
     color: rgba(255, 255, 255, 0.55);
     margin-top: 2px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.footer-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
 }
 
 .footer-made a {

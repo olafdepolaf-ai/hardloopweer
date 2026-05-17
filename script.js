@@ -274,18 +274,11 @@ function onLocationGranted() {
     if (window.lucide) lucide.createIcons();
 }
 
-let _buienradarResizeTimer = null;
-
 async function init() {
     applyTranslations();
     updateTime();
     setInterval(updateTime, 10000);
     updateBuienradar();
-
-    window.addEventListener('resize', () => {
-        clearTimeout(_buienradarResizeTimer);
-        _buienradarResizeTimer = setTimeout(updateBuienradar, 600);
-    });
 
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
         if (state._lastHourly) {
@@ -393,11 +386,6 @@ function updateTime() {
 
 function updateBuienradar() {
     if (!els.buienradarFrame) return;
-    const container = els.buienradarFrame.closest('.buienradar-container') || els.buienradarFrame.parentElement;
-    const w = Math.max(280, Math.round(container ? container.clientWidth : 400));
-    const h = w < 480 ? 380 : 500;
-    els.buienradarFrame.style.width = w + 'px';
-    els.buienradarFrame.style.height = h + 'px';
     els.buienradarFrame.src = `https://gadgets.buienradar.nl/gadget/zoommap/?lat=${state.lat}&lng=${state.lon}&overname=2&zoom=10&pins=0&naam=${encodeURIComponent(state.city)}`;
 }
 

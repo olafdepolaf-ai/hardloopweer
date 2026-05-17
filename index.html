@@ -74,8 +74,11 @@
                         </div>
                         <div class="hero-right">
                             <div class="location-info">
-                                <h2 id="city-name">Amsterdam</h2>
-                                <p><span id="current-time"></span> • <span id="weather-description">Laden...</span></p>
+                                <div class="location-row">
+                                    <h2 id="city-name">Amsterdam</h2>
+                                    <span id="current-time"></span>
+                                </div>
+                                <p id="weather-description">Laden...</p>
                             </div>
                             <div class="weather-metrics">
                                 <div class="metric-item">
@@ -181,15 +184,17 @@
                 <a href="https://github.com/olafdepolaf-ai/hardloopweer" target="_blank" rel="noopener">GitHub</a>
             </div>
             <div class="footer-made">
-                <span data-i18n="footer_made">Made with</span>
-                <svg class="amsterdam-heart" viewBox="0 0 100 100" aria-hidden="true">
-                    <path d="M50 80 L10 40 Q0 20 20 10 Q40 0 50 20 Q60 0 80 10 Q100 20 90 40 Z" fill="currentColor"/>
-                    <path d="M35 38 L50 53 L65 38" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-                <span data-i18n="footer_by">in Amsterdam by</span>
-                <a href="https://www.linkedin.com/in/olaflemmers/" target="_blank" rel="noopener">Olaf Lemmers</a>
+                <span class="footer-group">
+                    <span data-i18n="footer_made">Made with</span>
+                    <svg class="amsterdam-heart" viewBox="0 0 100 100" aria-hidden="true">
+                        <path d="M50 80 L10 40 Q0 20 20 10 Q40 0 50 20 Q60 0 80 10 Q100 20 90 40 Z" fill="currentColor"/>
+                        <path d="M35 38 L50 53 L65 38" stroke="white" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <span data-i18n="footer_by">in Amsterdam by</span>
+                </span>
+                <a href="https://www.linkedin.com/in/olaflemmers/" target="_blank" rel="noopener" style="white-space:nowrap">Olaf Lemmers</a>
                 <span class="footer-dot">·</span>
-                <a href="https://buymeacoffee.com/olafdepolaf" target="_blank" rel="noopener">☕ Buy me a coffee</a>
+                <a href="https://buymeacoffee.com/olafdepolaf" target="_blank" rel="noopener" style="white-space:nowrap">☕ Buy me a coffee</a>
             </div>
         </footer>
     </div>
