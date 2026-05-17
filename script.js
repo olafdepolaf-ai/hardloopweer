@@ -707,6 +707,7 @@ function generateRecommendation(current, dewPoint, uvIndex = 0) {
 function chartTheme() {
     const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     return {
+        dark,
         canvasBg:          dark ? '#1a1b1e'                : '#ffffff',
         gridColor:         dark ? 'rgba(255,255,255,0.1)'  : 'rgba(0,0,0,0.06)',
         tickColor:         dark ? 'rgba(255,255,255,0.6)'  : 'rgba(0,0,0,0.55)',
@@ -933,10 +934,11 @@ function wgs84ToRD(lat, lon) {
 async function fetchRIVMUV() {
     try {
         const rd = wgs84ToRD(state.lat, state.lon);
-        if (rd.x < 0 || rd.x > 300000 || rd.y < 300000 || rd.y > 650000) return null;
-        const I = Math.round(rd.x);
-        const J = Math.round(650000 - rd.y);
-        const url = `https://data.rivm.nl/geo/alo/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&QUERY_LAYERS=rivm_zonkracht&LAYERS=rivm_zonkracht&INFO_FORMAT=application/json&FEATURE_COUNT=1&I=${I}&J=${J}&CRS=EPSG:28992&WIDTH=300000&HEIGHT=350000&BBOX=0,300000,300000,650000`;
+        if (rd.x < -150000 || rd.x > 450000 || rd.y < 100000 || rd.y > 800000) return null;
+        const I = Math.round((rd.x + 150000) / 600000 * 900);
+        const J = Math.round((800000 - rd.y)  / 700000 * 900);
+        if (I < 0 || I >= 900 || J < 0 || J >= 900) return null;
+        const url = `https://data.rivm.nl/geo/alo/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetFeatureInfo&QUERY_LAYERS=rivm_zonkracht&LAYERS=rivm_zonkracht&INFO_FORMAT=application/json&FEATURE_COUNT=1&I=${I}&J=${J}&CRS=EPSG:28992&WIDTH=900&HEIGHT=900&BBOX=-150000,100000,450000,800000`;
         const res = await fetch(url);
         const data = await res.json();
         if (data.features?.length > 0) return data.features[0].properties;
@@ -961,8 +963,9 @@ function parseRIVMBands(props, startBand, endBand) {
 }
 
 function getUVLevel(uv) {
-    if (uv < 1)   return { label: t('uv_none'),     cls: 'uv-none',      color: '#9E9E9E', tip: t('uv_tip_none') };
-    if (uv < 2.5) return { label: t('uv_low'),      cls: 'uv-low',       color: '#57BB8A', tip: t('uv_tip_low') };
+    if (uv < 1)   return { label: t('uv_none'),     cls: 'uv-none',      color: '#9E9E9E', tip: '' };
+    if (uv < 2.5) return { label: t('uv_low'),      cls: 'uv-low',       color: '#57BB8A', tip: '' };
+    // tip: t('uv_tip_none') / t('uv_tip_low') removed — no advice needed for low UV
     if (uv < 4.5) return { label: t('uv_moderate'), cls: 'uv-moderate',  color: '#F9AB00', tip: t('uv_tip_moderate') };
     if (uv < 6.5) return { label: t('uv_high'),     cls: 'uv-high',      color: '#F57C00', tip: t('uv_tip_high') };
     return         { label: t('uv_very_high'),       cls: 'uv-very-high', color: '#D93025', tip: t('uv_tip_very_high') };
@@ -1099,12 +1102,13 @@ function drawUVChart(canvas, labels, predicted, measured) {
                 {
                     label: t('uv_label_predicted'),
                     data: predicted,
-                    borderColor: '#F57C00',
+                    borderColor: theme.dark ? 'rgba(255,255,255,0.7)' : '#F57C00',
+                    borderDash: [3, 4],
                     backgroundColor: 'transparent',
                     fill: false,
                     tension: 0.4,
                     pointRadius: 0,
-                    borderWidth: 2,
+                    borderWidth: 1.5,
                     spanGaps: true
                 },
                 {
