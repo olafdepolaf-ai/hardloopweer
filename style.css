@@ -149,6 +149,14 @@ header {
 .suggestion-name {
     font-size: 0.95rem;
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.suggestion-gps-icon {
+    flex-shrink: 0;
+    opacity: 0.75;
 }
 
 .suggestion-detail {
@@ -165,19 +173,6 @@ header {
     outline: none;
 }
 
-#location-btn {
-    border: none;
-    background: transparent;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    padding: 4px;
-    transition: transform 0.2s;
-}
-
-#location-btn:hover {
-    transform: scale(1.1);
-}
 
 /* ── Cards ────────────────────────────────────────────── */
 .card {

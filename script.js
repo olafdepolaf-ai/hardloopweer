@@ -70,7 +70,6 @@ const CONFIG = {
 
 const els = {
     citySearch: document.getElementById('city-search'),
-    locationBtn: document.getElementById('location-btn'),
     cityName: document.getElementById('city-name'),
     currentTime: document.getElementById('current-time'),
     currentTemp: document.getElementById('current-temp'),
@@ -282,7 +281,26 @@ function hideSuggestions() {
     activeSuggestionIdx = -1;
 }
 
+function handleGPSSuggestion() {
+    hideSuggestions();
+    els.citySearch.value = '';
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            state.lat = pos.coords.latitude;
+            state.lon = pos.coords.longitude;
+            if (DEBUG) { state._debug.geoSource = 'GPS ✓ (handmatig)'; renderDebug(); }
+            fetchWeather();
+            updateBuienradar();
+            reverseGeocode(state.lat, state.lon);
+            onLocationGranted();
+        },
+        () => { /* denied – do nothing */ }
+    );
+}
+
 function selectSuggestion(item) {
+    if (item.dataset.action === 'gps') { handleGPSSuggestion(); return; }
     const lat = parseFloat(item.dataset.lat);
     const lon = parseFloat(item.dataset.lon);
     const name = item.dataset.name;
@@ -341,16 +359,25 @@ function saveRecentLocation(loc) {
     storageSet('hw_recent_locations', JSON.stringify(recents.slice(0, 3)));
 }
 
+const GPS_ICON_SVG = `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true" class="suggestion-gps-icon"><path fill="currentColor" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm8.94 3c-.46-4.17-3.77-7.48-7.94-7.94V1h-2v2.06C6.83 3.52 3.52 6.37 3.06 10.54H1v2h2.06c.46 4.17 3.77 7.48 7.94 7.94V23h2v-2.06c4.17-.46 7.48-3.77 7.94-7.94H23v-2h-2.06zM12 19c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>`;
+
 function showRecentSuggestions() {
-    const recents = loadRecentLocations();
     const ul = els.searchSuggestions;
-    if (!ul || recents.length === 0) return;
+    if (!ul) return;
+    const recents = loadRecentLocations();
     const sorted = [...recents].sort((a, b) => a.city.localeCompare(b.city, state.lang));
-    ul.innerHTML = sorted.map((r, i) =>
+
+    const gpsItem = `<li class="search-suggestion-item is-gps" data-action="gps">
+        <span class="suggestion-name">${GPS_ICON_SVG} ${escHtml(t('btn_my_location'))}</span>
+    </li>`;
+
+    const recentItems = sorted.map((r, i) =>
         `<li class="search-suggestion-item is-recent" data-idx="${i}" data-lat="${r.lat}" data-lon="${r.lon}" data-name="${escAttr(r.city)}">
             <span class="suggestion-name">🕐 ${escHtml(r.city)}</span>
         </li>`
     ).join('');
+
+    ul.innerHTML = gpsItem + recentItems;
     ul.classList.remove('hidden');
     activeSuggestionIdx = -1;
     ul.querySelectorAll('.search-suggestion-item').forEach(item => {
@@ -459,18 +486,6 @@ async function init() {
 
     els.citySearch.addEventListener('blur', () => {
         setTimeout(hideSuggestions, 150);
-    });
-
-    els.locationBtn.addEventListener('click', () => {
-        navigator.geolocation.getCurrentPosition((pos) => {
-            state.lat = pos.coords.latitude;
-            state.lon = pos.coords.longitude;
-            if (DEBUG) { state._debug.geoSource = 'GPS ✓ (handmatig)'; renderDebug(); }
-            fetchWeather();
-            updateBuienradar();
-            reverseGeocode(state.lat, state.lon);
-            onLocationGranted();
-        });
     });
 
     els.searchToggle?.addEventListener('click', () => {

@@ -202,11 +202,6 @@
 [data-theme="beter"] #city-search::placeholder {
     color: var(--text-secondary);
 }
-[data-theme="beter"] #location-btn {
-    color: var(--accent);
-    min-width: 40px;
-    min-height: 40px;
-}
 
 /* ── Search suggestions ───────────────────────────────── */
 [data-theme="beter"] .search-suggestions {

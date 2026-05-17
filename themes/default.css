@@ -105,7 +105,6 @@
 [data-theme="default"] .suggestion-name  { color: var(--text-primary); }
 [data-theme="default"] .suggestion-detail { color: var(--text-secondary); }
 [data-theme="default"] #city-search      { color: var(--text-primary); }
-[data-theme="default"] #location-btn     { color: var(--accent); }
 
 /* ── Cards ────────────────────────────────────────────── */
 [data-theme="default"] .card {
