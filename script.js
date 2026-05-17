@@ -800,7 +800,11 @@ function renderChart(hourly, minutely15) {
             dataLabels: { enabled: false },
             legend: { show: false },
             markers: { size: 0 },
-            tooltip: { shared: true, intersect: false, x: { formatter: xFormatter } },
+            tooltip: {
+                shared: true, intersect: false,
+                x: { formatter: xFormatter },
+                y: { formatter: v => String(Math.round(v)) }
+            },
             grid: apexGrid
         });
         state.tempChart.render();
@@ -820,13 +824,13 @@ function renderChart(hourly, minutely15) {
                 labels: { formatter: v => v, style: { fontSize: '11px' } }
             },
             colors: ['#1a73e8'],
-            plotOptions: { bar: { columnWidth: '80%', borderRadius: 2 } },
+            plotOptions: { bar: { columnWidth: '80%', borderRadius: 2, minHeight: 2 } },
             dataLabels: { enabled: false },
             legend: { show: false },
             tooltip: {
                 shared: true, intersect: false,
                 x: { formatter: xFormatter },
-                y: { formatter: v => v > 0 ? v.toFixed(1) + ' mm' : '' }
+                y: { formatter: v => v.toFixed(1) + ' mm' }
             },
             grid: apexGrid
         });
