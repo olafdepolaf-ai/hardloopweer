@@ -1035,6 +1035,7 @@ function renderUVChart(hourly, daily) {
         _renderUVChart(hourly, daily);
     } catch (e) {
         console.error('UV-grafiek fout:', e);
+        if (DEBUG) { state._debug.rivmStatus = 'RENDER FOUT: ' + e.message + ' @ ' + (e.stack?.split('\n')[1]?.trim() ?? '?'); renderDebug(); }
     }
 }
 
