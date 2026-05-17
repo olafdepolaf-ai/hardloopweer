@@ -5,12 +5,31 @@ function cssVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
+function storageGet(key) {
+    try { return localStorage.getItem(key); }
+    catch { return null; }
+}
+
+function storageSet(key, value) {
+    try { localStorage.setItem(key, value); }
+    catch { /* file:// previews may block storage */ }
+}
+
 function detectLanguage() {
     const supported = Object.keys(STRINGS);
-    const saved = localStorage.getItem('hw_lang');
+    const requested = new URLSearchParams(window.location.search).get('lang');
+    if (requested && supported.includes(requested)) return requested;
+    const saved = storageGet('hw_lang');
     if (saved && supported.includes(saved)) return saved;
     const browser = (navigator.language || 'nl').split('-')[0].toLowerCase();
     return supported.includes(browser) ? browser : 'nl';
+}
+
+function reloadWithLanguage(lang) {
+    storageSet('hw_lang', lang);
+    const url = new URL(window.location.href);
+    url.searchParams.set('lang', lang);
+    window.location.assign(url.toString());
 }
 
 function t(key, params = {}) {
@@ -59,8 +78,8 @@ const els = {
     feelsLike: document.getElementById('feels-like'),
     windForce: document.getElementById('wind-force'),
     windArrow: document.getElementById('wind-arrow'),
-    humidity: document.getElementById('humidity'),
     dewPoint: document.getElementById('dew-point'),
+    heroUV: document.getElementById('hero-uv'),
     recommendationBadge: document.getElementById('recommendation-badge'),
     clothingTip: document.getElementById('clothing-tip'),
     warnings: document.getElementById('weather-warnings'),
@@ -79,9 +98,10 @@ let state = {
     city: CONFIG.DEFAULT_CITY,
     tempChart: null,
     rainChart: null,
-    humidityChart: null,
     dewpointChart: null,
     uvChart: null,
+    weatherRequestId: 0,
+    renderedWeatherRequestId: 0,
     utcOffsetSeconds: 3600,
     timezone: 'Europe/Amsterdam',
     lang: detectLanguage(),
@@ -90,7 +110,7 @@ let state = {
         uvSource: 'open-meteo',
         rdX: null, rdY: null, wmsI: null, wmsJ: null,
         rivmStatus: '–',
-        temp: null, feelsLike: null, wind: null, humidity: null, dewPoint: null,
+        temp: null, feelsLike: null, wind: null, dewPoint: null,
         uvCurrent: null, uvMax: null, weatherCode: null
     }
 };
@@ -298,18 +318,18 @@ function onLocationGranted() {
 // ---- Persistente locatie & recente geschiedenis ----
 
 function saveLastLocation() {
-    localStorage.setItem('hw_last_location', JSON.stringify({
+    storageSet('hw_last_location', JSON.stringify({
         lat: state.lat, lon: state.lon, city: state.city
     }));
 }
 
 function loadLastLocation() {
-    try { return JSON.parse(localStorage.getItem('hw_last_location')); }
+    try { return JSON.parse(storageGet('hw_last_location')); }
     catch { return null; }
 }
 
 function loadRecentLocations() {
-    try { return JSON.parse(localStorage.getItem('hw_recent_locations') || '[]'); }
+    try { return JSON.parse(storageGet('hw_recent_locations') || '[]'); }
     catch { return []; }
 }
 
@@ -317,7 +337,7 @@ function saveRecentLocation(loc) {
     let recents = loadRecentLocations();
     recents = recents.filter(r => r.city.toLowerCase() !== loc.city.toLowerCase());
     recents.unshift(loc);
-    localStorage.setItem('hw_recent_locations', JSON.stringify(recents.slice(0, 3)));
+    storageSet('hw_recent_locations', JSON.stringify(recents.slice(0, 3)));
 }
 
 function showRecentSuggestions() {
@@ -338,6 +358,7 @@ function showRecentSuggestions() {
 }
 
 async function init() {
+    if (DEBUG) renderDebug();
     applyTranslations();
     updateTime();
     setInterval(updateTime, 10000);
@@ -352,16 +373,17 @@ async function init() {
 
     document.getElementById('lang-select')?.addEventListener('change', (e) => {
         state.lang = e.target.value;
-        localStorage.setItem('hw_lang', state.lang);
-        applyTranslations();
-        if (state.uvChart) {
-            state.uvChart.data.datasets[0].label = t('uv_label_predicted');
-            state.uvChart.data.datasets[1].label = t('uv_label_measured');
-            state.uvChart.update();
-        }
+        reloadWithLanguage(state.lang);
     });
 
-    // Laad laatste handmatige locatie als beginstatus (GPS overschrijft indien toegestaan)
+    state.lat = CONFIG.DEFAULT_LAT;
+    state.lon = CONFIG.DEFAULT_LON;
+    state.city = CONFIG.DEFAULT_CITY;
+    if (els.cityName) els.cityName.innerText = CONFIG.DEFAULT_CITY;
+    if (DEBUG) { state._debug.geoSource = 'default Amsterdam'; renderDebug(); }
+    fetchWeather();
+
+    // Laad laatste handmatige locatie als die er is; GPS overschrijft indien toegestaan.
     const lastLoc = loadLastLocation();
     if (lastLoc) {
         state.lat = lastLoc.lat;
@@ -369,6 +391,7 @@ async function init() {
         state.city = lastLoc.city;
         if (els.cityName) els.cityName.innerText = lastLoc.city;
         if (DEBUG) { state._debug.geoSource = 'localStorage'; renderDebug(); }
+        fetchWeather();
     }
 
     if (DEBUG) renderDebug();
@@ -386,12 +409,10 @@ async function init() {
             },
             () => {
                 if (DEBUG) { state._debug.geoSource = 'default (geen toestemming)'; renderDebug(); }
-                fetchWeather();
             }
         );
     } else {
         if (DEBUG) { state._debug.geoSource = 'default (geen geo-API)'; renderDebug(); }
-        fetchWeather();
     }
 
     const debouncedSuggest = debounce(async (query) => {
@@ -511,11 +532,13 @@ async function reverseGeocode(lat, lon) {
 }
 
 async function fetchWeather() {
+    const requestId = ++state.weatherRequestId;
+    const requestLocation = { lat: state.lat, lon: state.lon, city: state.city };
     const params = new URLSearchParams({
-        latitude: state.lat,
-        longitude: state.lon,
-        current: ['temperature_2m', 'relative_humidity_2m', 'apparent_temperature', 'is_day', 'weather_code', 'wind_speed_10m', 'wind_direction_10m'],
-        hourly: ['temperature_2m', 'weather_code', 'dew_point_2m', 'relative_humidity_2m', 'precipitation', 'uv_index'],
+        latitude: requestLocation.lat,
+        longitude: requestLocation.lon,
+        current: ['temperature_2m', 'apparent_temperature', 'is_day', 'weather_code', 'wind_speed_10m', 'wind_direction_10m'],
+        hourly: ['temperature_2m', 'weather_code', 'dew_point_2m', 'precipitation', 'uv_index'],
         minutely_15: ['precipitation'],
         daily: ['sunrise', 'sunset'],
         timezone: 'auto',
@@ -525,6 +548,12 @@ async function fetchWeather() {
     try {
         const res = await fetch(`${CONFIG.API_URL}?${params.toString()}`);
         const data = await res.json();
+        if (requestId < state.renderedWeatherRequestId) return;
+        state.renderedWeatherRequestId = requestId;
+        state.lat = requestLocation.lat;
+        state.lon = requestLocation.lon;
+        state.city = requestLocation.city;
+        if (els.cityName) els.cityName.innerText = requestLocation.city;
         updateUI(data);
     } catch (err) {
         console.error("Weer ophalen mislukt:", err);
@@ -556,7 +585,6 @@ function updateUI(data) {
 
     els.currentTemp.innerText = `${Math.round(current.temperature_2m)}°`;
     if (els.feelsLike) els.feelsLike.innerText = `${Math.round(current.apparent_temperature)}°`;
-    if (els.humidity) els.humidity.innerText = `${Math.round(current.relative_humidity_2m)}%`;
 
     const bft = getBeaufort(current.wind_speed_10m);
     if (els.windForce) els.windForce.innerText = `${bft} Bft`;
@@ -580,27 +608,28 @@ function updateUI(data) {
     }
     if (window.lucide) lucide.createIcons();
 
-    updateComfortLevel(dp, current.temperature_2m);
     const currentUV = data.hourly.uv_index?.[hourIdx] ?? 0;
-    generateRecommendation(current, dp, currentUV);
     state._lastHourly = data.hourly;
     state._lastMinutely15 = data.minutely_15;
     state._lastDaily = data.daily;
+    const forecastDewpointStatus = dewpointRunStatus(maxFinite(collectVisibleDewpoints(data.hourly, data.minutely_15)));
+    updateComfortLevel(dp, current.temperature_2m, forecastDewpointStatus);
+    generateRecommendation(current, dp, currentUV, forecastDewpointStatus);
     renderChart(data.hourly, data.minutely_15);
     renderUVChart(data.hourly, data.daily);
     if (DEBUG) {
         state._debug.temp = Math.round(current.temperature_2m);
         state._debug.feelsLike = Math.round(current.apparent_temperature);
         state._debug.wind = bft;
-        state._debug.humidity = Math.round(current.relative_humidity_2m);
         state._debug.dewPoint = Math.round(dp);
         state._debug.weatherCode = current.weather_code;
         renderDebug();
     }
     fetchWeatherAlerts().then(renderAlerts);
+    fetchAQI();
 }
 
-function updateComfortLevel(dewPoint, temp) {
+function updateComfortLevel(dewPoint, temp, forecastDewpointStatus = null) {
     const tempF = (temp * 9 / 5) + 32;
     const dpF = (dewPoint * 9 / 5) + 32;
     const sum = tempF + dpF;
@@ -610,7 +639,13 @@ function updateComfortLevel(dewPoint, temp) {
     let level = "";
     let cssClass = "";
 
-    if (sum <= 100) {
+    if (forecastDewpointStatus?.level === 'red') {
+        level = t('comfort_stop');     cssClass = "oppressive";
+    } else if (forecastDewpointStatus?.level === 'orange') {
+        level = t('comfort_tough');    cssClass = "uncomfortable";
+    } else if (forecastDewpointStatus?.level === 'yellow') {
+        level = t('comfort_sticky');   cssClass = "humid";
+    } else if (sum <= 100) {
         level = t('comfort_perfect');  cssClass = "very-comfortable";
     } else if (sum <= 110) {
         level = t('comfort_good');     cssClass = "comfortable";
@@ -707,7 +742,7 @@ function buildClothingItems(temp, bft, uvIndex) {
     return items;
 }
 
-function generateRecommendation(current, dewPoint, uvIndex = 0) {
+function generateRecommendation(current, dewPoint, uvIndex = 0, forecastDewpointStatus = null) {
     const temp = current.temperature_2m;
     const feelsLike = current.apparent_temperature;
     const bft = getBeaufort(current.wind_speed_10m);
@@ -716,14 +751,18 @@ function generateRecommendation(current, dewPoint, uvIndex = 0) {
     const issues = [];
     function flag(score, msg) { issues.push({ score, msg }); }
 
-    const dp = Math.round(dewPoint);
+    const dp = Math.round(forecastDewpointStatus?.value ?? dewPoint);
     const fl = Math.round(feelsLike);
     const uv = uvIndex.toFixed(1);
 
-    // Dew point
-    if (dewPoint > 21)      flag(3, t('warn_dew_extreme',    { temp: dp }));
-    else if (dewPoint > 18) flag(2, t('warn_dew_high',       { temp: dp }));
-    else if (dewPoint > 13) flag(1, t('warn_dew_moderate',   { temp: dp }));
+    // Dew point: keep this aligned with the dew point graph warning levels.
+    if (forecastDewpointStatus?.level === 'red') {
+        flag(3, t('warn_dew_extreme', { temp: dp }));
+    } else if (forecastDewpointStatus?.level === 'orange') {
+        flag(2, t('warn_dew_high', { temp: dp }));
+    } else if (forecastDewpointStatus?.level === 'yellow') {
+        flag(1, t('warn_dew_moderate', { temp: dp }));
+    }
 
     // Feels-like temperature
     if (feelsLike > 35)       flag(3, t('warn_feels_very_hot',  { temp: fl }));
@@ -812,14 +851,73 @@ function chartTheme() {
     };
 }
 
-function renderChart(hourly, minutely15) {
+function maxFinite(values) {
+    const finite = values.filter(Number.isFinite);
+    return finite.length ? Math.max(...finite) : NaN;
+}
+
+function dewpointRunStatus(dewpoint) {
+    if (!Number.isFinite(dewpoint) || dewpoint < 18) return null;
+    if (dewpoint < 22) return { level: 'yellow', value: dewpoint, text: t('dewpoint_advice_yellow') };
+    if (dewpoint <= 28) return { level: 'orange', value: dewpoint, text: t('dewpoint_advice_orange') };
+    return { level: 'red', value: dewpoint, text: t('dewpoint_advice_red') };
+}
+
+function collectVisibleDewpoints(hourly, minutely15) {
     const nowISO = locationISO().substring(0, 14) + '00';
-    const labels = [], temps = [], rain = [], humidities = [], dewpoints = [], timestamps = [];
+    const dewpoints = [];
 
     if (minutely15?.time?.length) {
         let m15Start = minutely15.time.findIndex(t => t >= nowISO);
         if (m15Start === -1) m15Start = 0;
-        let lastHourTemp = null, lastHourHumidity = null, lastHourDewpoint = null;
+        let lastHourDewpoint = null;
+        for (let i = 0; i < 24; i++) {
+            const idx = m15Start + i * 2;
+            if (idx >= minutely15.time.length) break;
+            const ts = minutely15.time[idx];
+            if (ts.substring(14, 16) === '00') {
+                const hIdx = hourly.time.findIndex(t => t.startsWith(ts.substring(0, 13)));
+                lastHourDewpoint = hIdx !== -1 ? (hourly.dew_point_2m?.[hIdx] ?? null) : null;
+            }
+            dewpoints.push(lastHourDewpoint);
+        }
+        return dewpoints;
+    }
+
+    let startIndex = hourly.time.findIndex(t => t >= nowISO);
+    if (startIndex === -1) startIndex = 0;
+    for (let i = startIndex; i < startIndex + 12; i++) {
+        if (hourly.temperature_2m[i] === undefined) break;
+        dewpoints.push(hourly.dew_point_2m?.[i] ?? null);
+    }
+    return dewpoints;
+}
+
+function renderDewpointStatus(dewpoints) {
+    const statusEl = document.getElementById('dewpoint-status');
+    const textEl = document.getElementById('dewpoint-status-text');
+    if (!statusEl || !textEl) return;
+
+    const maxDewpoint = maxFinite(dewpoints);
+    const status = dewpointRunStatus(maxDewpoint);
+    if (!status) {
+        statusEl.className = 'dewpoint-status hidden';
+        textEl.textContent = '';
+        return;
+    }
+
+    statusEl.className = `dewpoint-status dewpoint-status-${status.level}`;
+    textEl.textContent = status.text;
+}
+
+function renderChart(hourly, minutely15) {
+    const nowISO = locationISO().substring(0, 14) + '00';
+    const labels = [], temps = [], rain = [], dewpoints = [], timestamps = [];
+
+    if (minutely15?.time?.length) {
+        let m15Start = minutely15.time.findIndex(t => t >= nowISO);
+        if (m15Start === -1) m15Start = 0;
+        let lastHourTemp = null, lastHourDewpoint = null;
         for (let i = 0; i < 24; i++) {
             const idx = m15Start + i * 2;
             if (idx >= minutely15.time.length) break;
@@ -834,11 +932,9 @@ function renderChart(hourly, minutely15) {
             if (min === '00') {
                 const hIdx = hourly.time.findIndex(t => t.startsWith(ts.substring(0, 13)));
                 lastHourTemp     = hIdx !== -1 ? hourly.temperature_2m[hIdx] : null;
-                lastHourHumidity = hIdx !== -1 ? (hourly.relative_humidity_2m?.[hIdx] ?? null) : null;
                 lastHourDewpoint = hIdx !== -1 ? (hourly.dew_point_2m?.[hIdx] ?? null) : null;
             }
             temps.push(lastHourTemp);
-            humidities.push(lastHourHumidity);
             dewpoints.push(lastHourDewpoint);
             const p0 = minutely15.precipitation[idx] || 0;
             const p1 = minutely15.precipitation[idx + 1] || 0;
@@ -855,9 +951,13 @@ function renderChart(hourly, minutely15) {
             timestamps.push(hour === 0 ? `${day} 0:00` : `${hour}:00`);
             temps.push(hourly.temperature_2m[i]);
             rain.push(Math.max(0, hourly.precipitation[i] || 0));
-            humidities.push(hourly.relative_humidity_2m?.[i] ?? null);
             dewpoints.push(hourly.dew_point_2m?.[i] ?? null);
         }
+    }
+
+    if (typeof ApexCharts === 'undefined') {
+        renderDewpointStatus(dewpoints);
+        return;
     }
 
     const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -939,35 +1039,6 @@ function renderChart(hourly, minutely15) {
         state.rainChart.render();
     }
 
-    // Luchtvochtigheid
-    if (state.humidityChart) { state.humidityChart.destroy(); state.humidityChart = null; }
-    const humidityEl = document.getElementById('humidity-chart');
-    if (humidityEl) {
-        state.humidityChart = new ApexCharts(humidityEl, {
-            chart: { ...apexBase, type: 'area', height: '100%' },
-            theme: apexTheme,
-            series: [{ name: '%', data: humidities }],
-            xaxis: { ...apexXaxis },
-            yaxis: {
-                labels: { formatter: v => Math.round(v), style: { fontSize: '11px' } },
-                tickAmount: 4
-            },
-            colors: [cssVar('--humidity') || '#00897B'],
-            fill: { type: 'gradient', gradient: { opacityFrom: 0.15, opacityTo: 0.02 } },
-            stroke: { curve: 'smooth', width: 2 },
-            dataLabels: { enabled: false },
-            legend: { show: false },
-            markers: { size: 0 },
-            tooltip: {
-                shared: true, intersect: false,
-                x: { formatter: xFormatter },
-                y: { formatter: v => Math.round(v) + '%' }
-            },
-            grid: apexGrid
-        });
-        state.humidityChart.render();
-    }
-
     // Dauwpunt
     if (state.dewpointChart) { state.dewpointChart.destroy(); state.dewpointChart = null; }
     const dewpointEl = document.getElementById('dewpoint-chart');
@@ -996,6 +1067,8 @@ function renderChart(hourly, minutely15) {
         });
         state.dewpointChart.render();
     }
+
+    renderDewpointStatus(dewpoints);
 }
 
 // ---- UV / Zonkracht ----
@@ -1108,7 +1181,7 @@ function renderDebug() {
         `<b>RIVM</b>: ${d.rivmStatus} &nbsp; <b>UV model</b>: <b>${d.uvSource}</b>`,
         `<b>UV huidig</b>: ${d.uvCurrent ?? '–'} | <b>UV max verwacht</b>: ${d.uvMax ?? '–'}`,
         `<b>Temp</b>: ${d.temp ?? '–'}°C | <b>Gevoel</b>: ${d.feelsLike ?? '–'}°C | <b>Wind</b>: ${d.wind ?? '–'} Bft`,
-        `<b>Vocht</b>: ${d.humidity ?? '–'}% | <b>Dauw</b>: ${d.dewPoint ?? '–'}°C | <b>WC</b>: ${d.weatherCode ?? '–'}`
+        `<b>Dauw</b>: ${d.dewPoint ?? '–'}°C | <b>WC</b>: ${d.weatherCode ?? '–'}`
     ].join('<br>');
 }
 
@@ -1155,6 +1228,62 @@ function parseRIVMBands(props, startBand, endBand) {
         result[localQuarter] = val;
     }
     return result;
+}
+
+function getAQILevel(aqi) {
+    if (aqi <= 20) return { label: t('aqi_good'),          color: '#168a4a', cls: 'aqi-good',      tipKey: 'good' };
+    if (aqi <= 40) return { label: t('aqi_fair'),          color: '#92b000', cls: 'aqi-fair',      tipKey: 'fair' };
+    if (aqi <= 60) return { label: t('aqi_moderate'),      color: '#d89200', cls: 'aqi-moderate',  tipKey: 'moderate' };
+    if (aqi <= 80) return { label: t('aqi_poor'),          color: '#e05a00', cls: 'aqi-poor',      tipKey: 'poor' };
+    if (aqi <= 100) return { label: t('aqi_very_poor'),    color: '#c8221c', cls: 'aqi-very-poor', tipKey: 'very_poor' };
+    return               { label: t('aqi_extremely_poor'), color: '#7b1fa2', cls: 'aqi-extreme',   tipKey: 'extreme' };
+}
+
+async function fetchAQI() {
+    const btn = document.getElementById('aqi-btn');
+    const panel = document.getElementById('aqi-panel');
+    if (!btn) return;
+    try {
+        const res = await fetch(
+            `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${state.lat}&longitude=${state.lon}&current=european_aqi,pm10,pm2_5,nitrogen_dioxide,ozone&timezone=auto`
+        );
+        const data = await res.json();
+        const c = data.current;
+        const aqi = c.european_aqi;
+        if (aqi === undefined || aqi === null) return;
+
+        const level = getAQILevel(aqi);
+        btn.style.setProperty('--aqi-color', level.color);
+        btn.className = `aqi-dot ${level.cls}`;
+        btn.setAttribute('aria-label', `${t('aqi_label')}: ${level.label}`);
+        btn.title = `${t('aqi_label')}: ${level.label} (${aqi})`;
+
+        if (panel) {
+            const pm25 = c.pm2_5?.toFixed(1) ?? '–';
+            const pm10 = c.pm10?.toFixed(1) ?? '–';
+            const no2  = c.nitrogen_dioxide?.toFixed(1) ?? '–';
+            const o3   = c.ozone?.toFixed(1) ?? '–';
+            panel.innerHTML = `
+                <div class="aqi-panel-header">
+                    <span class="aqi-panel-dot" style="background:${level.color}"></span>
+                    <strong>${escHtml(t('aqi_label'))}: ${escHtml(level.label)}</strong>
+                    <span class="aqi-panel-index">${aqi}</span>
+                </div>
+                <div class="aqi-panel-grid">
+                    <div class="aqi-pollutant"><span class="aqi-pollutant-name">PM2.5</span><span class="aqi-pollutant-val">${pm25} µg/m³</span></div>
+                    <div class="aqi-pollutant"><span class="aqi-pollutant-name">PM10</span><span class="aqi-pollutant-val">${pm10} µg/m³</span></div>
+                    <div class="aqi-pollutant"><span class="aqi-pollutant-name">NO₂</span><span class="aqi-pollutant-val">${no2} µg/m³</span></div>
+                    <div class="aqi-pollutant"><span class="aqi-pollutant-name">O₃</span><span class="aqi-pollutant-val">${o3} µg/m³</span></div>
+                </div>
+                <p class="aqi-panel-tip">${escHtml(t('aqi_tip_' + level.tipKey))}</p>
+            `;
+            panel.classList.add('hidden');
+        }
+
+        btn.onclick = () => panel?.classList.toggle('hidden');
+    } catch (e) {
+        console.warn('AQI niet beschikbaar:', e);
+    }
 }
 
 function getUVLevel(uv) {
@@ -1233,6 +1362,7 @@ function _renderUVChart(hourly, daily) {
     const currentUVValue = uvIndex[todayStart + currentHour] ?? 0;
     const uvInfoCur = getUVLevel(currentUVValue);
     if (currentEl) currentEl.innerText = currentUVValue.toFixed(1);
+    if (els.heroUV) els.heroUV.innerText = currentUVValue.toFixed(1);
     if (maxEl) maxEl.innerText = maxUVom.toFixed(1);
     if (levelEl) { levelEl.innerText = uvInfoCur.label; levelEl.className = `uv-badge ${uvInfoCur.cls}${uvInfoCur.cls === 'uv-none' ? ' hidden' : ''}`; }
     if (tipEl) tipEl.innerText = uvInfoCur.tip;
@@ -1277,6 +1407,10 @@ function _renderUVChart(hourly, daily) {
         if (curVal !== null && currentEl) {
             currentEl.innerText = curVal.toFixed(1);
             currentEl.title = t('rivm_measured');
+            if (els.heroUV) {
+                els.heroUV.innerText = curVal.toFixed(1);
+                els.heroUV.title = t('rivm_measured');
+            }
             const uvInfoRivm = getUVLevel(curVal);
             if (levelEl) { levelEl.innerText = uvInfoRivm.label; levelEl.className = `uv-badge ${uvInfoRivm.cls}${uvInfoRivm.cls === 'uv-none' ? ' hidden' : ''}`; }
             if (tipEl) tipEl.innerText = uvInfoRivm.tip;
@@ -1288,6 +1422,7 @@ function _renderUVChart(hourly, daily) {
 }
 
 function drawUVChart(canvas, labels, predicted, measured) {
+    if (typeof Chart === 'undefined') return;
     const ctx = canvas.getContext('2d');
     if (state.uvChart) state.uvChart.destroy();
     const theme = chartTheme();

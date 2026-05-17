@@ -177,6 +177,15 @@
 [data-theme="default"] .dot.humidity { background-color: #00897B; }
 [data-theme="default"] .dot.dewpoint { background-color: #6d28d9; }
 
+/* ── AQI panel ────────────────────────────────────────── */
+[data-theme="default"] .aqi-panel {
+    background: #f8f9fa;
+    border: 1px solid var(--border-soft);
+}
+[data-theme="default"] .aqi-dot:hover {
+    box-shadow: 0 0 0 3px rgba(0,0,0,0.12);
+}
+
 /* ── Buienradar ───────────────────────────────────────── */
 [data-theme="default"] .buienradar-credit   { color: var(--text-secondary); }
 [data-theme="default"] .buienradar-credit a { color: var(--accent); }

@@ -317,9 +317,9 @@
     border-color: color-mix(in srgb, var(--warning-color) 25%, transparent);
 }
 [data-theme="beter"] .comfort-badge.uncomfortable {
-    color: var(--warning-color);
-    background: color-mix(in srgb, var(--warning-color) 10%, transparent);
-    border-color: color-mix(in srgb, var(--warning-color) 25%, transparent);
+    color: #f57c00;
+    background: color-mix(in srgb, #f57c00 10%, transparent);
+    border-color: color-mix(in srgb, #f57c00 25%, transparent);
 }
 [data-theme="beter"] .comfort-badge.oppressive {
     color: var(--danger-color);
@@ -398,6 +398,15 @@
 [data-theme="beter"] .dot.rain     { background-color: var(--rain); border-radius: 2px; }
 [data-theme="beter"] .dot.humidity { background-color: var(--humidity); }
 [data-theme="beter"] .dot.dewpoint { background-color: var(--dewpoint); }
+
+/* ── AQI panel ────────────────────────────────────────── */
+[data-theme="beter"] .aqi-dot:hover {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--aqi-color, var(--accent)) 25%, transparent);
+}
+[data-theme="beter"] .aqi-panel {
+    background: var(--surface-muted);
+    border: 1px solid var(--border-soft);
+}
 
 /* ── Buienradar ───────────────────────────────────────── */
 [data-theme="beter"] #buienradar-section .buienradar-container {

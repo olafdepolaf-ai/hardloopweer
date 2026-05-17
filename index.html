@@ -79,8 +79,10 @@
                                 <div class="location-row">
                                     <h2 id="city-name">Amsterdam</h2>
                                     <span id="current-time"></span>
+                                    <button id="aqi-btn" class="aqi-dot hidden" aria-label="Luchtkwaliteit"></button>
                                 </div>
                                 <p id="weather-description">Laden...</p>
+                                <div id="aqi-panel" class="aqi-panel hidden"></div>
                             </div>
                             <div class="weather-metrics">
                                 <div class="metric-item">
@@ -95,12 +97,12 @@
                                     </div>
                                 </div>
                                 <div class="metric-item">
-                                    <span class="label" data-i18n="label_humidity">Vochtig</span>
-                                    <span id="humidity" class="value">--%</span>
-                                </div>
-                                <div class="metric-item">
                                     <span class="label" data-i18n="label_dew">Dauw</span>
                                     <span id="dew-point" class="value">--°</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="label">UV</span>
+                                    <span id="hero-uv" class="value">--</span>
                                 </div>
                             </div>
                         </div>
@@ -151,16 +153,14 @@
                     <div id="rain-chart"></div>
                 </div>
                 <div class="chart-legend chart-legend-secondary">
-                    <div class="legend-item"><span class="dot humidity"></span> <span data-i18n="legend_humidity">Luchtvochtigheid (%)</span></div>
-                </div>
-                <div class="chart-container chart-container-secondary">
-                    <div id="humidity-chart"></div>
-                </div>
-                <div class="chart-legend chart-legend-secondary">
                     <div class="legend-item"><span class="dot dewpoint"></span> <span data-i18n="legend_dewpoint">Dauwpunt (°C)</span></div>
                 </div>
                 <div class="chart-container chart-container-secondary">
                     <div id="dewpoint-chart"></div>
+                </div>
+                <div id="dewpoint-status" class="dewpoint-status hidden" aria-live="polite">
+                    <span class="dewpoint-status-dot"></span>
+                    <span id="dewpoint-status-text"></span>
                 </div>
             </section>
 
@@ -217,6 +217,16 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://unpkg.com/lucide@0.511.0/dist/umd/lucide.js"></script>
+    <script>
+        window.addEventListener('error', function (event) {
+            var el = document.getElementById('debug-panel');
+            if (el) el.textContent = 'JS error: ' + event.message;
+        });
+        window.addEventListener('unhandledrejection', function (event) {
+            var el = document.getElementById('debug-panel');
+            if (el) el.textContent = 'Promise error: ' + (event.reason && event.reason.message ? event.reason.message : event.reason);
+        });
+    </script>
     <script src="script.js"></script>
 </body>
 
