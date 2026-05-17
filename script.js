@@ -271,6 +271,8 @@ function selectSuggestion(item) {
     els.cityName.innerText = name;
     els.citySearch.value = name;
     hideSuggestions();
+    saveLastLocation();
+    saveRecentLocation({ lat, lon, city: name });
     fetchWeather();
     updateBuienradar();
     if (!els.searchToggle?.classList.contains('hidden')) {
@@ -291,6 +293,48 @@ function onLocationGranted() {
     els.searchContainer?.classList.add('collapsed');
     els.searchToggle?.classList.remove('hidden');
     if (window.lucide) lucide.createIcons();
+}
+
+// ---- Persistente locatie & recente geschiedenis ----
+
+function saveLastLocation() {
+    localStorage.setItem('hw_last_location', JSON.stringify({
+        lat: state.lat, lon: state.lon, city: state.city
+    }));
+}
+
+function loadLastLocation() {
+    try { return JSON.parse(localStorage.getItem('hw_last_location')); }
+    catch { return null; }
+}
+
+function loadRecentLocations() {
+    try { return JSON.parse(localStorage.getItem('hw_recent_locations') || '[]'); }
+    catch { return []; }
+}
+
+function saveRecentLocation(loc) {
+    let recents = loadRecentLocations();
+    recents = recents.filter(r => r.city.toLowerCase() !== loc.city.toLowerCase());
+    recents.unshift(loc);
+    localStorage.setItem('hw_recent_locations', JSON.stringify(recents.slice(0, 3)));
+}
+
+function showRecentSuggestions() {
+    const recents = loadRecentLocations();
+    const ul = els.searchSuggestions;
+    if (!ul || recents.length === 0) return;
+    const sorted = [...recents].sort((a, b) => a.city.localeCompare(b.city, state.lang));
+    ul.innerHTML = sorted.map((r, i) =>
+        `<li class="search-suggestion-item is-recent" data-idx="${i}" data-lat="${r.lat}" data-lon="${r.lon}" data-name="${escAttr(r.city)}">
+            <span class="suggestion-name">🕐 ${escHtml(r.city)}</span>
+        </li>`
+    ).join('');
+    ul.classList.remove('hidden');
+    activeSuggestionIdx = -1;
+    ul.querySelectorAll('.search-suggestion-item').forEach(item => {
+        item.addEventListener('mousedown', (e) => { e.preventDefault(); selectSuggestion(item); });
+    });
 }
 
 async function init() {
@@ -316,6 +360,16 @@ async function init() {
             state.uvChart.update();
         }
     });
+
+    // Laad laatste handmatige locatie als beginstatus (GPS overschrijft indien toegestaan)
+    const lastLoc = loadLastLocation();
+    if (lastLoc) {
+        state.lat = lastLoc.lat;
+        state.lon = lastLoc.lon;
+        state.city = lastLoc.city;
+        if (els.cityName) els.cityName.innerText = lastLoc.city;
+        if (DEBUG) { state._debug.geoSource = 'localStorage'; renderDebug(); }
+    }
 
     if (DEBUG) renderDebug();
 
@@ -345,8 +399,13 @@ async function init() {
         showSuggestions(results);
     }, 280);
 
+    els.citySearch.addEventListener('focus', () => {
+        if (!els.citySearch.value.trim()) showRecentSuggestions();
+    });
+
     els.citySearch.addEventListener('input', (e) => {
         const q = e.target.value.trim();
+        if (q.length === 0) { showRecentSuggestions(); return; }
         if (q.length < 2) { hideSuggestions(); return; }
         debouncedSuggest(q);
     });
@@ -425,6 +484,8 @@ async function searchCity(query) {
             state.lon = loc.longitude;
             state.city = loc.name;
             els.cityName.innerText = state.city;
+            saveLastLocation();
+            saveRecentLocation({ lat: state.lat, lon: state.lon, city: state.city });
             fetchWeather();
             updateBuienradar();
             if (!els.searchToggle.classList.contains('hidden')) {
