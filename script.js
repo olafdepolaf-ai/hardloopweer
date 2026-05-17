@@ -79,6 +79,8 @@ let state = {
     city: CONFIG.DEFAULT_CITY,
     tempChart: null,
     rainChart: null,
+    humidityChart: null,
+    dewpointChart: null,
     uvChart: null,
     utcOffsetSeconds: 3600,
     timezone: 'Europe/Amsterdam',
@@ -452,7 +454,7 @@ async function fetchWeather() {
         latitude: state.lat,
         longitude: state.lon,
         current: ['temperature_2m', 'relative_humidity_2m', 'apparent_temperature', 'is_day', 'weather_code', 'wind_speed_10m', 'wind_direction_10m'],
-        hourly: ['temperature_2m', 'weather_code', 'dew_point_2m', 'precipitation', 'uv_index'],
+        hourly: ['temperature_2m', 'weather_code', 'dew_point_2m', 'relative_humidity_2m', 'precipitation', 'uv_index'],
         minutely_15: ['precipitation'],
         daily: ['sunrise', 'sunset'],
         timezone: 'auto',
@@ -751,12 +753,12 @@ function chartTheme() {
 
 function renderChart(hourly, minutely15) {
     const nowISO = locationISO().substring(0, 14) + '00';
-    const labels = [], temps = [], rain = [], timestamps = [];
+    const labels = [], temps = [], rain = [], humidities = [], dewpoints = [], timestamps = [];
 
     if (minutely15?.time?.length) {
         let m15Start = minutely15.time.findIndex(t => t >= nowISO);
         if (m15Start === -1) m15Start = 0;
-        let lastHourTemp = null;
+        let lastHourTemp = null, lastHourHumidity = null, lastHourDewpoint = null;
         for (let i = 0; i < 24; i++) {
             const idx = m15Start + i * 2;
             if (idx >= minutely15.time.length) break;
@@ -770,9 +772,13 @@ function renderChart(hourly, minutely15) {
             timestamps.push(hour === 0 ? `${day} 0:${min}` : `${hour}:${min}`);
             if (min === '00') {
                 const hIdx = hourly.time.findIndex(t => t.startsWith(ts.substring(0, 13)));
-                lastHourTemp = hIdx !== -1 ? hourly.temperature_2m[hIdx] : null;
+                lastHourTemp     = hIdx !== -1 ? hourly.temperature_2m[hIdx] : null;
+                lastHourHumidity = hIdx !== -1 ? (hourly.relative_humidity_2m?.[hIdx] ?? null) : null;
+                lastHourDewpoint = hIdx !== -1 ? (hourly.dew_point_2m?.[hIdx] ?? null) : null;
             }
             temps.push(lastHourTemp);
+            humidities.push(lastHourHumidity);
+            dewpoints.push(lastHourDewpoint);
             const p0 = minutely15.precipitation[idx] || 0;
             const p1 = minutely15.precipitation[idx + 1] || 0;
             rain.push(p0 + p1);
@@ -788,6 +794,8 @@ function renderChart(hourly, minutely15) {
             timestamps.push(hour === 0 ? `${day} 0:00` : `${hour}:00`);
             temps.push(hourly.temperature_2m[i]);
             rain.push(Math.max(0, hourly.precipitation[i] || 0));
+            humidities.push(hourly.relative_humidity_2m?.[i] ?? null);
+            dewpoints.push(hourly.dew_point_2m?.[i] ?? null);
         }
     }
 
@@ -868,6 +876,64 @@ function renderChart(hourly, minutely15) {
             grid: apexGrid
         });
         state.rainChart.render();
+    }
+
+    // Luchtvochtigheid
+    if (state.humidityChart) { state.humidityChart.destroy(); state.humidityChart = null; }
+    const humidityEl = document.getElementById('humidity-chart');
+    if (humidityEl) {
+        state.humidityChart = new ApexCharts(humidityEl, {
+            chart: { ...apexBase, type: 'area', height: '100%' },
+            theme: apexTheme,
+            series: [{ name: '%', data: humidities }],
+            xaxis: { ...apexXaxis },
+            yaxis: {
+                min: 0, max: 100, tickAmount: 4,
+                labels: { formatter: v => Math.round(v), style: { fontSize: '11px' } }
+            },
+            colors: [cssVar('--humidity') || '#00897B'],
+            fill: { type: 'gradient', gradient: { opacityFrom: 0.15, opacityTo: 0.02 } },
+            stroke: { curve: 'smooth', width: 2 },
+            dataLabels: { enabled: false },
+            legend: { show: false },
+            markers: { size: 0 },
+            tooltip: {
+                shared: true, intersect: false,
+                x: { formatter: xFormatter },
+                y: { formatter: v => Math.round(v) + '%' }
+            },
+            grid: apexGrid
+        });
+        state.humidityChart.render();
+    }
+
+    // Dauwpunt
+    if (state.dewpointChart) { state.dewpointChart.destroy(); state.dewpointChart = null; }
+    const dewpointEl = document.getElementById('dewpoint-chart');
+    if (dewpointEl) {
+        state.dewpointChart = new ApexCharts(dewpointEl, {
+            chart: { ...apexBase, type: 'area', height: '100%' },
+            theme: apexTheme,
+            series: [{ name: '°C', data: dewpoints }],
+            xaxis: { ...apexXaxis },
+            yaxis: {
+                labels: { formatter: v => Math.round(v) + '°', style: { fontSize: '11px' } },
+                tickAmount: 4
+            },
+            colors: [cssVar('--dewpoint') || '#6d28d9'],
+            fill: { type: 'gradient', gradient: { opacityFrom: 0.15, opacityTo: 0.02 } },
+            stroke: { curve: 'smooth', width: 2 },
+            dataLabels: { enabled: false },
+            legend: { show: false },
+            markers: { size: 0 },
+            tooltip: {
+                shared: true, intersect: false,
+                x: { formatter: xFormatter },
+                y: { formatter: v => Math.round(v) + '°C' }
+            },
+            grid: apexGrid
+        });
+        state.dewpointChart.render();
     }
 }
 

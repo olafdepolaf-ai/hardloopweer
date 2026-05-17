@@ -26,6 +26,8 @@
     --accent-warm: #f9ab00;
     --rain:        #1a73e8;
     --temp:        #D93025;
+    --humidity:    #00897B;
+    --dewpoint:    #6d28d9;
 
     /* Semantic */
     --success-color: #1e8e3e;
@@ -170,8 +172,10 @@
 [data-theme="default"] .uv-badge.uv-extreme   { background: #f3e5f5; color: #7b1fa2; }
 
 /* ── Chart legend dots ────────────────────────────────── */
-[data-theme="default"] .dot.temp { background-color: #D93025; }
-[data-theme="default"] .dot.rain { background-color: #1a73e8; border-radius: 2px; }
+[data-theme="default"] .dot.temp     { background-color: #D93025; }
+[data-theme="default"] .dot.rain     { background-color: #1a73e8; border-radius: 2px; }
+[data-theme="default"] .dot.humidity { background-color: #00897B; }
+[data-theme="default"] .dot.dewpoint { background-color: #6d28d9; }
 
 /* ── Buienradar ───────────────────────────────────────── */
 [data-theme="default"] .buienradar-credit   { color: var(--text-secondary); }

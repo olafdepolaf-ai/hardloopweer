@@ -23,6 +23,8 @@
     --accent-warm: #ffb000;
     --rain:        #2678ff;
     --temp:        #ff5c35;
+    --humidity:    #00a676;
+    --dewpoint:    #8b5cf6;
 
     --success-color: #168a4a;
     --warning-color: #d89200;
@@ -76,6 +78,8 @@
         --accent-warm: #ffd166;
         --rain:        #74aaff;
         --temp:        #ff8a66;
+        --humidity:    #33d39c;
+        --dewpoint:    #c4b5fd;
 
         --success-color: #5fe09a;
         --warning-color: #ffd166;
@@ -390,8 +394,10 @@
 }
 
 /* ── Chart legend dots ────────────────────────────────── */
-[data-theme="beter"] .dot.temp { background-color: var(--temp); }
-[data-theme="beter"] .dot.rain { background-color: var(--rain); border-radius: 2px; }
+[data-theme="beter"] .dot.temp     { background-color: var(--temp); }
+[data-theme="beter"] .dot.rain     { background-color: var(--rain); border-radius: 2px; }
+[data-theme="beter"] .dot.humidity { background-color: var(--humidity); }
+[data-theme="beter"] .dot.dewpoint { background-color: var(--dewpoint); }
 
 /* ── Buienradar ───────────────────────────────────────── */
 [data-theme="beter"] #buienradar-section .buienradar-container {
