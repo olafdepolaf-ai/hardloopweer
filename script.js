@@ -1,3 +1,10 @@
+const FEATURE_THEME = 'beter'; // 'default' of 'beter'
+document.documentElement.dataset.theme = FEATURE_THEME;
+
+function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 function detectLanguage() {
     const supported = Object.keys(STRINGS);
     const saved = localStorage.getItem('hw_lang');
@@ -733,12 +740,12 @@ function chartTheme() {
     const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     return {
         dark,
-        canvasBg:          dark ? '#1a1b1e'                : '#ffffff',
-        gridColor:         dark ? 'rgba(255,255,255,0.1)'  : 'rgba(0,0,0,0.06)',
-        tickColor:         dark ? 'rgba(255,255,255,0.6)'  : 'rgba(0,0,0,0.55)',
-        tooltipBg:         dark ? 'rgba(25,25,25,0.97)'   : 'rgba(255,255,255,0.97)',
-        tooltipText:       dark ? '#e0e0e0'                : '#1a1b1e',
-        tooltipBorder:     dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+        canvasBg:      cssVar('--chart-bg')             || (dark ? '#1a1b1e'                : '#ffffff'),
+        gridColor:     cssVar('--chart-grid')            || (dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'),
+        tickColor:     cssVar('--chart-tick')            || (dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.55)'),
+        tooltipBg:     cssVar('--chart-tooltip-bg')      || (dark ? 'rgba(25,25,25,0.97)'  : 'rgba(255,255,255,0.97)'),
+        tooltipText:   cssVar('--chart-tooltip-text')    || (dark ? '#e0e0e0'               : '#1a1b1e'),
+        tooltipBorder: cssVar('--chart-tooltip-border')  || (dark ? 'rgba(255,255,255,0.15)': 'rgba(0,0,0,0.1)'),
     };
 }
 
@@ -802,7 +809,7 @@ function renderChart(hourly, minutely15) {
         tooltip: { enabled: false }
     };
     const apexGrid = {
-        borderColor: dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.07)',
+        borderColor: cssVar('--chart-grid') || (dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.07)'),
         xaxis: { lines: { show: true } }
     };
     const xFormatter = (_, opts) => timestamps[opts?.dataPointIndex] ?? '';
@@ -820,7 +827,7 @@ function renderChart(hourly, minutely15) {
                 labels: { formatter: v => Math.round(v), style: { fontSize: '11px' } },
                 tickAmount: 4
             },
-            colors: ['#D93025'],
+            colors: [cssVar('--temp') || '#D93025'],
             fill: { type: 'gradient', gradient: { opacityFrom: 0.18, opacityTo: 0.02 } },
             stroke: { curve: 'smooth', width: 2 },
             dataLabels: { enabled: false },
@@ -849,7 +856,7 @@ function renderChart(hourly, minutely15) {
                 min: 0, max: 3, tickAmount: 3,
                 labels: { formatter: v => v, style: { fontSize: '11px' } }
             },
-            colors: ['#1a73e8'],
+            colors: [cssVar('--rain') || '#1a73e8'],
             plotOptions: { bar: { columnWidth: '80%', borderRadius: 2, minHeight: 2 } },
             dataLabels: { enabled: false },
             legend: { show: false },
@@ -883,9 +890,11 @@ function uvZoneColor(v) {
 const canvasBgPlugin = {
     id: 'canvasBg',
     beforeDraw(chart) {
+        const bg = chartTheme().canvasBg;
+        if (!bg || bg === 'transparent') return;
         const { ctx, width, height } = chart;
         ctx.save();
-        ctx.fillStyle = chartTheme().canvasBg;
+        ctx.fillStyle = bg;
         ctx.fillRect(0, 0, width, height);
         ctx.restore();
     }
@@ -1168,7 +1177,7 @@ function drawUVChart(canvas, labels, predicted, measured) {
                 {
                     label: t('uv_label_predicted'),
                     data: predicted,
-                    borderColor: theme.dark ? 'rgba(255,255,255,0.7)' : '#F57C00',
+                    borderColor: theme.dark ? 'rgba(255,255,255,0.7)' : (cssVar('--accent-warm') || '#F57C00'),
                     borderDash: [3, 4],
                     backgroundColor: 'transparent',
                     fill: false,
@@ -1180,13 +1189,13 @@ function drawUVChart(canvas, labels, predicted, measured) {
                 {
                     label: t('uv_label_measured'),
                     data: measured,
-                    borderColor: '#1565C0',
+                    borderColor: cssVar('--accent') || '#1565C0',
                     backgroundColor: 'transparent',
                     fill: false,
                     tension: 0.15,
                     pointRadius: 1.5,
-                    pointBackgroundColor: '#1565C0',
-                    pointBorderColor: '#1565C0',
+                    pointBackgroundColor: cssVar('--accent') || '#1565C0',
+                    pointBorderColor: cssVar('--accent') || '#1565C0',
                     borderWidth: 2.5,
                     spanGaps: false
                 }

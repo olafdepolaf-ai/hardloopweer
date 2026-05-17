@@ -1,0 +1,209 @@
+/* ═══════════════════════════════════════════════════════
+   Default Theme — reproduces the original Hardloopweer look
+   ═══════════════════════════════════════════════════════ */
+
+:root,
+[data-theme="default"] {
+    color-scheme: light;
+
+    /* Page */
+    --page-bg:  #0047AB;
+    --page-bg-2: #0047AB;
+
+    /* Surfaces */
+    --surface:        #ffffff;
+    --surface-strong: #ffffff;
+    --surface-muted:  #f1f3f4;
+
+    /* Text */
+    --text-primary:   #1a1b1e;
+    --text-secondary: #5f6368;
+    --text-inverse:   #ffffff;
+
+    /* Accents */
+    --accent:      #1a73e8;
+    --accent-2:    #1a73e8;
+    --accent-warm: #f9ab00;
+    --rain:        #1a73e8;
+    --temp:        #D93025;
+
+    /* Semantic */
+    --success-color: #1e8e3e;
+    --warning-color: #f9ab00;
+    --danger-color:  #d93025;
+
+    /* Borders */
+    --border-soft:   rgba(0, 0, 0, 0.06);
+    --border-strong: rgba(0, 0, 0, 0.12);
+
+    /* Shadows (elevation system) */
+    --shadow-card:   0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.24);
+    --shadow-soft:   0 3px 6px rgba(0,0,0,.16), 0 3px 6px rgba(0,0,0,.23);
+    --shadow-strong: 0 10px 20px rgba(0,0,0,.19), 0 6px 6px rgba(0,0,0,.23);
+
+    /* Legacy aliases */
+    --elevation-1: var(--shadow-card);
+    --elevation-2: var(--shadow-soft);
+    --elevation-3: var(--shadow-strong);
+
+    /* Radius */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 24px;
+
+    /* Chart */
+    --chart-bg:            #ffffff;
+    --chart-grid:          rgba(0,0,0,0.06);
+    --chart-tick:          rgba(0,0,0,0.55);
+    --chart-tooltip-bg:    rgba(255,255,255,0.97);
+    --chart-tooltip-text:  #1a1b1e;
+    --chart-tooltip-border: rgba(0,0,0,0.1);
+}
+
+/* ── Body background ──────────────────────────────────── */
+[data-theme="default"] body {
+    background-color: var(--page-bg);
+}
+
+/* ── Header ───────────────────────────────────────────── */
+[data-theme="default"] header {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elevation-1);
+}
+
+/* ── Search ───────────────────────────────────────────── */
+[data-theme="default"] .search-toggle {
+    background: var(--surface-muted);
+    color: var(--text-secondary);
+}
+[data-theme="default"] .search-toggle:hover {
+    background: #e8eaed;
+    color: var(--text-primary);
+}
+[data-theme="default"] .search-toggle.active {
+    background: #e8eaed;
+    color: var(--accent);
+}
+[data-theme="default"] .search-container {
+    background: var(--surface-muted);
+}
+[data-theme="default"] .search-suggestions {
+    background: var(--surface);
+    border-radius: var(--radius-md);
+    box-shadow: var(--elevation-2);
+}
+[data-theme="default"] .search-suggestion-item {
+    border-bottom: 1px solid var(--surface-muted);
+}
+[data-theme="default"] .search-suggestion-item:hover,
+[data-theme="default"] .search-suggestion-item.active {
+    background: #f8f9fa;
+}
+[data-theme="default"] .suggestion-name  { color: var(--text-primary); }
+[data-theme="default"] .suggestion-detail { color: var(--text-secondary); }
+[data-theme="default"] #city-search      { color: var(--text-primary); }
+[data-theme="default"] #location-btn     { color: var(--accent); }
+
+/* ── Cards ────────────────────────────────────────────── */
+[data-theme="default"] .card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--elevation-1);
+    color: var(--text-primary);
+}
+[data-theme="default"] .card h3 { color: var(--text-primary); }
+
+/* ── Alerts ───────────────────────────────────────────── */
+[data-theme="default"] .alert-expires { color: var(--text-secondary); }
+[data-theme="default"] .alert-desc    { color: var(--text-secondary); }
+[data-theme="default"] .alert-divider { border-color: var(--surface-muted); }
+
+/* ── Hero ─────────────────────────────────────────────── */
+[data-theme="default"] .location-info h2 { color: var(--text-primary); }
+[data-theme="default"] #current-time      { color: var(--text-secondary); }
+[data-theme="default"] #weather-description { color: var(--text-secondary); }
+[data-theme="default"] .metric-item .label  { color: var(--text-secondary); }
+[data-theme="default"] .wind-arrow          { color: var(--accent); }
+[data-theme="default"] #current-temp        { color: var(--text-primary); }
+[data-theme="default"] #weather-icon-container { color: var(--accent-warm); }
+
+/* ── Comfort badge ────────────────────────────────────── */
+[data-theme="default"] .comfort-badge {
+    background: #f8f9fa;
+    box-shadow: var(--elevation-1);
+}
+[data-theme="default"] .comfort-badge.very-comfortable { color: #1e8e3e; background: #e6f4ea; }
+[data-theme="default"] .comfort-badge.comfortable      { color: #1e8e3e; background: #e6f4ea; }
+[data-theme="default"] .comfort-badge.humid            { color: #f9ab00; background: #fef7e0; }
+[data-theme="default"] .comfort-badge.uncomfortable    { color: #e37400; background: #feefe3; }
+[data-theme="default"] .comfort-badge.oppressive       { color: #d93025; background: #fce8e6; }
+
+/* ── Running recommendation / Badges ──────────────────── */
+[data-theme="default"] .badge {
+    box-shadow: var(--elevation-1);
+}
+[data-theme="default"] .badge.success { background: #e6f4ea; color: var(--success-color); }
+[data-theme="default"] .badge.warning { background: #fef7e0; color: var(--warning-color); }
+[data-theme="default"] .badge.caution { background: #feefe3; color: #e37400; }
+[data-theme="default"] .badge.danger  { background: #fce8e6; color: var(--danger-color); }
+
+[data-theme="default"] .tip-content    { color: var(--text-primary); }
+[data-theme="default"] .clothing-list li::before { color: var(--accent); }
+[data-theme="default"] .warnings {
+    background: #fce8e6;
+    color: var(--danger-color);
+}
+
+/* ── UV section ───────────────────────────────────────── */
+[data-theme="default"] .uv-stat-value     { color: var(--text-primary); }
+[data-theme="default"] .uv-stat-secondary { color: var(--text-secondary); }
+[data-theme="default"] .uv-stat-label     { color: var(--text-secondary); }
+[data-theme="default"] .uv-tip            { color: var(--text-secondary); }
+
+[data-theme="default"] .uv-badge          { background: #f1f3f4;  color: var(--text-secondary); }
+[data-theme="default"] .uv-badge.uv-none      { background: #f1f3f4; color: #757575; }
+[data-theme="default"] .uv-badge.uv-low       { background: #e6f4ea; color: #1e8e3e; }
+[data-theme="default"] .uv-badge.uv-moderate  { background: #fef7e0; color: #e37400; }
+[data-theme="default"] .uv-badge.uv-high      { background: #feefe3; color: #d56e00; }
+[data-theme="default"] .uv-badge.uv-very-high { background: #fce8e6; color: #d93025; }
+[data-theme="default"] .uv-badge.uv-extreme   { background: #f3e5f5; color: #7b1fa2; }
+
+/* ── Chart legend dots ────────────────────────────────── */
+[data-theme="default"] .dot.temp { background-color: #D93025; }
+[data-theme="default"] .dot.rain { background-color: #1a73e8; border-radius: 2px; }
+
+/* ── Buienradar ───────────────────────────────────────── */
+[data-theme="default"] .buienradar-credit   { color: var(--text-secondary); }
+[data-theme="default"] .buienradar-credit a { color: var(--accent); }
+
+/* ── Footer ───────────────────────────────────────────── */
+[data-theme="default"] footer {
+    color: rgba(255,255,255,0.75);
+}
+[data-theme="default"] .footer-links a {
+    color: rgba(255,255,255,0.85);
+}
+[data-theme="default"] .footer-links a:hover { color: #ffffff; }
+[data-theme="default"] .footer-dot  { color: rgba(255,255,255,0.35); }
+[data-theme="default"] .footer-made { color: rgba(255,255,255,0.55); }
+[data-theme="default"] .footer-made a {
+    color: rgba(255,255,255,0.8);
+}
+[data-theme="default"] .footer-made a:hover { color: #ffffff; }
+
+/* ── Lang select ──────────────────────────────────────── */
+[data-theme="default"] .lang-select {
+    background-color: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.25);
+    color: #fff;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.6)'/%3E%3C/svg%3E");
+}
+[data-theme="default"] .lang-select:hover {
+    background-color: rgba(255,255,255,0.2);
+    border-color: rgba(255,255,255,0.45);
+}
+[data-theme="default"] .lang-select option {
+    background: #1a3a6b;
+    color: #fff;
+}
