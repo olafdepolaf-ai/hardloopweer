@@ -426,7 +426,6 @@
     color: var(--text-secondary);
 }
 [data-theme="beter"] .footer-made a:hover { color: var(--text-primary); }
-[data-theme="beter"] .amsterdam-heart { color: #e8172d; }
 
 /* ── Lang select ──────────────────────────────────────── */
 [data-theme="beter"] .lang-select {
