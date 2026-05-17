@@ -894,7 +894,7 @@ const canvasBgPlugin = {
 const crosshairPlugin = {
     id: 'crosshair',
     afterDraw(chart) {
-        const active = chart.tooltip._active;
+        const active = chart.tooltip?._active;
         if (!active?.length) return;
         const { ctx, chartArea: { top, bottom } } = chart;
         const x = active[0].element.x;
