@@ -867,10 +867,9 @@ async function fetchBuienradarRain() {
             const val = parseInt(parts[0], 10);
             const time = parts[1].trim();
             if (isNaN(val) || !time) continue;
-            // Convert to mm/5min: intensity (mm/u) * (5/60)
+            // Formula per Buienradar docs: Neerslagintensiteit = 10^((waarde-109)/32) in mm/u
             const mmPerHour = val === 0 ? 0 : Math.pow(10, (val - 109) / 32);
-            const mm5min = mmPerHour * (5 / 60);
-            parsed.push({ time, mm5min });
+            parsed.push({ time, mmPerHour });
         }
 
         if (parsed.length < 5) {
@@ -901,7 +900,7 @@ function renderRainChartBuienradar(parsed) {
         // Show label only on each full hour
         return m === 0 ? d.time : '';
     });
-    const data  = parsed.map(d => Math.max(0, d.mm5min));
+    const data  = parsed.map(d => Math.max(0, d.mmPerHour));
     const times = parsed.map(d => d.time);
 
     const xFormatter = (_, opts) => times[opts?.dataPointIndex] ?? '';
@@ -910,9 +909,9 @@ function renderRainChartBuienradar(parsed) {
     const rainEl = document.getElementById('rain-chart');
     if (!rainEl) return;
 
-    // Max y: at least 0.5 mm/5min (= 6 mm/h peak), scale up if needed
+    // Scale y to data, minimum ceiling of 2 mm/u so empty charts look right
     const dataMax = Math.max(...data);
-    const yMax = Math.max(dataMax * 1.15, 0.1);
+    const yMax = Math.max(dataMax * 1.15, 2);
 
     state.rainChart = new ApexCharts(rainEl, {
         chart: {
@@ -925,7 +924,7 @@ function renderRainChartBuienradar(parsed) {
             height: '100%'
         },
         theme: apexTheme,
-        series: [{ name: 'mm', data }],
+        series: [{ name: 'mm/u', data }],
         xaxis: {
             categories: labels,
             labels: { rotate: 0, style: { fontSize: '11px' }, hideOverlappingLabels: false },
@@ -935,7 +934,7 @@ function renderRainChartBuienradar(parsed) {
         yaxis: {
             min: 0, max: yMax,
             tickAmount: 3,
-            labels: { formatter: v => v.toFixed(2), style: { fontSize: '11px' } }
+            labels: { formatter: v => v.toFixed(1), style: { fontSize: '11px' } }
         },
         colors: [cssVar('--rain') || '#1a73e8'],
         plotOptions: { bar: { columnWidth: '90%', borderRadius: 1, minHeight: 2 } },
@@ -944,7 +943,7 @@ function renderRainChartBuienradar(parsed) {
         tooltip: {
             shared: true, intersect: false,
             x: { formatter: xFormatter },
-            y: { formatter: v => v.toFixed(3) + ' mm' }
+            y: { formatter: v => v.toFixed(1) + ' mm/u' }
         },
         grid: apexGrid
     });
