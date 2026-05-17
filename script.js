@@ -287,6 +287,13 @@ async function init() {
         _buienradarResizeTimer = setTimeout(updateBuienradar, 600);
     });
 
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (state._lastHourly) {
+            renderChart(state._lastHourly, state._lastMinutely15);
+            renderUVChart(state._lastHourly, state._lastDaily);
+        }
+    });
+
     document.getElementById('lang-select')?.addEventListener('change', (e) => {
         state.lang = e.target.value;
         localStorage.setItem('hw_lang', state.lang);
@@ -502,6 +509,9 @@ function updateUI(data) {
     updateComfortLevel(dp, current.temperature_2m);
     const currentUV = data.hourly.uv_index?.[hourIdx] ?? 0;
     generateRecommendation(current, dp, currentUV);
+    state._lastHourly = data.hourly;
+    state._lastMinutely15 = data.minutely_15;
+    state._lastDaily = data.daily;
     renderChart(data.hourly, data.minutely_15);
     renderUVChart(data.hourly, data.daily);
     fetchWeatherAlerts().then(renderAlerts);
@@ -706,6 +716,17 @@ function generateRecommendation(current, dewPoint, uvIndex = 0) {
     }
 }
 
+function chartTheme() {
+    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    return {
+        gridColor:         dark ? 'rgba(255,255,255,0.1)'  : 'rgba(0,0,0,0.06)',
+        tickColor:         dark ? 'rgba(255,255,255,0.6)'  : 'rgba(0,0,0,0.55)',
+        tooltipBg:         dark ? 'rgba(25,25,25,0.97)'   : 'rgba(255,255,255,0.97)',
+        tooltipText:       dark ? '#e0e0e0'                : '#1a1b1e',
+        tooltipBorder:     dark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+    };
+}
+
 function renderChart(hourly, minutely15) {
     const canvas = document.getElementById('temp-chart');
     if (!canvas) return;
@@ -761,9 +782,15 @@ function renderChart(hourly, minutely15) {
         }
     }
 
+    const theme = chartTheme();
     const tooltipOpts = {
         mode: 'index',
         intersect: false,
+        backgroundColor: theme.tooltipBg,
+        titleColor: theme.tooltipText,
+        bodyColor: theme.tooltipText,
+        borderColor: theme.tooltipBorder,
+        borderWidth: 1,
         callbacks: {
             title: items => timestamps[items[0]?.dataIndex] ?? '',
             label: item => item.parsed.y !== null
@@ -773,8 +800,8 @@ function renderChart(hourly, minutely15) {
         filter: item => item.parsed.y !== null
     };
     const xAxis = {
-        grid: { display: true, color: 'rgba(0,0,0,0.05)' },
-        ticks: { maxRotation: 0, minRotation: 0, font: { size: 11 } }
+        grid: { display: true, color: theme.gridColor },
+        ticks: { maxRotation: 0, minRotation: 0, font: { size: 11 }, color: theme.tickColor }
     };
 
     // Temperatuurgrafiek
@@ -804,6 +831,8 @@ function renderChart(hourly, minutely15) {
                     x: { ...xAxis, ticks: { ...xAxis.ticks, display: false } },
                     y: {
                         position: 'left',
+                        grid: { color: theme.gridColor },
+                        ticks: { color: theme.tickColor },
                         title: { display: true, text: '°C', font: { weight: 'bold', size: 13 }, color: '#D93025' }
                     }
                 }
@@ -839,6 +868,8 @@ function renderChart(hourly, minutely15) {
                         position: 'left',
                         min: 0,
                         suggestedMax: 2,
+                        grid: { color: theme.gridColor },
+                        ticks: { color: theme.tickColor },
                         title: { display: true, text: 'mm', font: { weight: 'bold', size: 13 }, color: '#1a73e8' }
                     }
                 }
@@ -1089,6 +1120,7 @@ function _renderUVChart(hourly, daily) {
 function drawUVChart(canvas, labels, predicted, measured) {
     const ctx = canvas.getContext('2d');
     if (state.uvChart) state.uvChart.destroy();
+    const theme = chartTheme();
 
     const maxPredicted = Math.max(...predicted.filter(v => v !== null && v > 0), 0);
     const maxMeasured  = Math.max(...measured.filter(v => v !== null && v > 0), 0);
@@ -1133,6 +1165,11 @@ function drawUVChart(canvas, labels, predicted, measured) {
                 tooltip: {
                     mode: 'index',
                     intersect: false,
+                    backgroundColor: theme.tooltipBg,
+                    titleColor: theme.tooltipText,
+                    bodyColor: theme.tooltipText,
+                    borderColor: theme.tooltipBorder,
+                    borderWidth: 1,
                     callbacks: {
                         label: item => item.parsed.y !== null
                             ? `${item.dataset.label}: ${item.parsed.y.toFixed(1)}`
@@ -1143,13 +1180,13 @@ function drawUVChart(canvas, labels, predicted, measured) {
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { maxTicksLimit: 8, font: { size: 11 } }
+                    ticks: { maxTicksLimit: 8, font: { size: 11 }, color: theme.tickColor }
                 },
                 y: {
                     min: 0,
                     suggestedMax: Math.max(Math.ceil(chartMax) + 1, 3),
-                    grid: { color: 'rgba(0,0,0,0.05)' },
-                    ticks: { font: { size: 11 } }
+                    grid: { color: theme.gridColor },
+                    ticks: { font: { size: 11 }, color: theme.tickColor }
                 }
             }
         },
