@@ -506,12 +506,12 @@ header {
     height: 140px;
 }
 
-.chart-legend-rain {
-    margin-top: 8px;
+.chart-container-rain {
+    margin-top: 16px;
 }
 
-.chart-legend-secondary {
-    margin-top: 8px;
+.chart-container-secondary {
+    margin-top: 16px;
 }
 
 .chart-container-secondary {

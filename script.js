@@ -936,6 +936,11 @@ function renderRainChartBuienradar(parsed) {
             tickAmount: 3,
             labels: { formatter: v => v.toFixed(1), style: { fontSize: '11px' } }
         },
+        title: {
+            text: t('legend_rain'),
+            align: 'left',
+            style: { fontSize: '12px', fontWeight: '600', fontFamily: 'Inter, sans-serif', color: cssVar('--chart-tick') || '#666' }
+        },
         colors: [cssVar('--rain') || '#1a73e8'],
         plotOptions: { bar: { columnWidth: '90%', borderRadius: 1, minHeight: 2 } },
         dataLabels: { enabled: false },
@@ -1108,6 +1113,11 @@ function renderChart(hourly, minutely15) {
                 labels: { formatter: v => Math.round(v), style: { fontSize: '11px' } },
                 tickAmount: 4
             },
+            title: {
+                text: t('legend_temp'),
+                align: 'left',
+                style: { fontSize: '12px', fontWeight: '600', fontFamily: 'Inter, sans-serif', color: cssVar('--chart-tick') || '#666' }
+            },
             colors: [cssVar('--temp') || '#D93025'],
             fill: { type: 'gradient', gradient: { opacityFrom: 0.18, opacityTo: 0.02 } },
             stroke: { curve: 'smooth', width: 2 },
@@ -1137,6 +1147,11 @@ function renderChart(hourly, minutely15) {
                 min: 0, max: 3, tickAmount: 3,
                 labels: { formatter: v => v, style: { fontSize: '11px' } }
             },
+            title: {
+                text: t('legend_rain'),
+                align: 'left',
+                style: { fontSize: '12px', fontWeight: '600', fontFamily: 'Inter, sans-serif', color: cssVar('--chart-tick') || '#666' }
+            },
             colors: [cssVar('--rain') || '#1a73e8'],
             plotOptions: { bar: { columnWidth: '80%', borderRadius: 2, minHeight: 2 } },
             dataLabels: { enabled: false },
@@ -1163,6 +1178,11 @@ function renderChart(hourly, minutely15) {
             yaxis: {
                 labels: { formatter: v => Math.round(v) + '°', style: { fontSize: '11px' } },
                 tickAmount: 4
+            },
+            title: {
+                text: t('legend_dewpoint'),
+                align: 'left',
+                style: { fontSize: '12px', fontWeight: '600', fontFamily: 'Inter, sans-serif', color: cssVar('--chart-tick') || '#666' }
             },
             colors: [cssVar('--dewpoint') || '#6d28d9'],
             fill: { type: 'gradient', gradient: { opacityFrom: 0.15, opacityTo: 0.02 } },
