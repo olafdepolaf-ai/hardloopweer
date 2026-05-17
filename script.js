@@ -111,7 +111,8 @@ let state = {
         rdX: null, rdY: null, wmsI: null, wmsJ: null,
         rivmStatus: '–',
         temp: null, feelsLike: null, wind: null, dewPoint: null,
-        uvCurrent: null, uvMax: null, weatherCode: null
+        uvCurrent: null, uvMax: null, weatherCode: null,
+        buienradarRain: '–'
     }
 };
 
@@ -627,6 +628,7 @@ function updateUI(data) {
     }
     fetchWeatherAlerts().then(renderAlerts);
     fetchAQI();
+    if (isInNetherlands()) fetchBuienradarRain();
 }
 
 function updateComfortLevel(dewPoint, temp, forecastDewpointStatus = null) {
@@ -836,6 +838,117 @@ function generateRecommendation(current, dewPoint, uvIndex = 0, forecastDewpoint
             els.warnings.classList.add('hidden');
         }
     }
+}
+
+async function fetchBuienradarRain() {
+    if (typeof ApexCharts === 'undefined' || !state.rainChart) return;
+    const lat = state.lat.toFixed(2);
+    const lon = state.lon.toFixed(2);
+    try {
+        const res = await fetch(
+            `https://gadgets.buienradar.nl/data/raintext/?lat=${lat}&lon=${lon}`
+        );
+        if (!res.ok) {
+            if (DEBUG) { state._debug.buienradarRain = `HTTP ${res.status} (Open-Meteo fallback)`; renderDebug(); }
+            return;
+        }
+        const text = await res.text();
+        const lines = text.trim().split('\n').filter(Boolean);
+        if (lines.length < 5) {
+            if (DEBUG) { state._debug.buienradarRain = `te weinig data (${lines.length} regels)`; renderDebug(); }
+            return;
+        }
+
+        // Parse lines: "087|16:20"
+        const parsed = [];
+        for (const line of lines) {
+            const parts = line.trim().split('|');
+            if (parts.length !== 2) continue;
+            const val = parseInt(parts[0], 10);
+            const time = parts[1].trim();
+            if (isNaN(val) || !time) continue;
+            // Convert to mm/5min: intensity (mm/u) * (5/60)
+            const mmPerHour = val === 0 ? 0 : Math.pow(10, (val - 109) / 32);
+            const mm5min = mmPerHour * (5 / 60);
+            parsed.push({ time, mm5min });
+        }
+
+        if (parsed.length < 5) {
+            if (DEBUG) { state._debug.buienradarRain = 'parse mislukt'; renderDebug(); }
+            return;
+        }
+
+        renderRainChartBuienradar(parsed);
+        if (DEBUG) { state._debug.buienradarRain = `buienradar ok (${parsed.length} intervallen, 5-min)`; renderDebug(); }
+    } catch (e) {
+        console.warn('Buienradar rain mislukt:', e.message);
+        if (DEBUG) { state._debug.buienradarRain = 'fout: ' + e.message + ' (Open-Meteo fallback)'; renderDebug(); }
+    }
+}
+
+function renderRainChartBuienradar(parsed) {
+    if (!state.rainChart) return;
+    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const apexTheme = { mode: dark ? 'dark' : 'light' };
+    const apexGrid = {
+        borderColor: cssVar('--chart-grid') || (dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.07)'),
+        xaxis: { lines: { show: true } }
+    };
+
+    const labels = parsed.map(d => {
+        const [hStr, mStr] = d.time.split(':');
+        const h = parseInt(hStr, 10), m = parseInt(mStr, 10);
+        // Show label only on each full hour
+        return m === 0 ? d.time : '';
+    });
+    const data  = parsed.map(d => Math.max(0, d.mm5min));
+    const times = parsed.map(d => d.time);
+
+    const xFormatter = (_, opts) => times[opts?.dataPointIndex] ?? '';
+
+    state.rainChart.destroy();
+    const rainEl = document.getElementById('rain-chart');
+    if (!rainEl) return;
+
+    // Max y: at least 0.5 mm/5min (= 6 mm/h peak), scale up if needed
+    const dataMax = Math.max(...data);
+    const yMax = Math.max(dataMax * 1.15, 0.1);
+
+    state.rainChart = new ApexCharts(rainEl, {
+        chart: {
+            toolbar: { show: false },
+            zoom: { enabled: false },
+            animations: { enabled: false },
+            background: 'transparent',
+            fontFamily: 'Inter, sans-serif',
+            type: 'bar',
+            height: '100%'
+        },
+        theme: apexTheme,
+        series: [{ name: 'mm', data }],
+        xaxis: {
+            categories: labels,
+            labels: { rotate: 0, style: { fontSize: '11px' }, hideOverlappingLabels: false },
+            axisTicks: { show: false },
+            tooltip: { enabled: false }
+        },
+        yaxis: {
+            min: 0, max: yMax,
+            tickAmount: 3,
+            labels: { formatter: v => v.toFixed(2), style: { fontSize: '11px' } }
+        },
+        colors: [cssVar('--rain') || '#1a73e8'],
+        plotOptions: { bar: { columnWidth: '90%', borderRadius: 1, minHeight: 2 } },
+        dataLabels: { enabled: false },
+        legend: { show: false },
+        tooltip: {
+            shared: true, intersect: false,
+            x: { formatter: xFormatter },
+            y: { formatter: v => v.toFixed(3) + ' mm' }
+        },
+        grid: apexGrid
+    });
+    state.rainChart.render();
 }
 
 function chartTheme() {
@@ -1181,7 +1294,8 @@ function renderDebug() {
         `<b>RIVM</b>: ${d.rivmStatus} &nbsp; <b>UV model</b>: <b>${d.uvSource}</b>`,
         `<b>UV huidig</b>: ${d.uvCurrent ?? '–'} | <b>UV max verwacht</b>: ${d.uvMax ?? '–'}`,
         `<b>Temp</b>: ${d.temp ?? '–'}°C | <b>Gevoel</b>: ${d.feelsLike ?? '–'}°C | <b>Wind</b>: ${d.wind ?? '–'} Bft`,
-        `<b>Dauw</b>: ${d.dewPoint ?? '–'}°C | <b>WC</b>: ${d.weatherCode ?? '–'}`
+        `<b>Dauw</b>: ${d.dewPoint ?? '–'}°C | <b>WC</b>: ${d.weatherCode ?? '–'}`,
+        `<b>Buienradar regen</b>: ${d.buienradarRain}`
     ].join('<br>');
 }
 
