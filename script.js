@@ -725,8 +725,8 @@ function renderChart(hourly, minutely15) {
         let m15Start = minutely15.time.findIndex(t => t >= nowISO);
         if (m15Start === -1) m15Start = 0;
         let lastHourTemp = null;
-        for (let i = 0; i < 48; i++) {
-            const idx = m15Start + i;
+        for (let i = 0; i < 24; i++) {
+            const idx = m15Start + i * 2;
             if (idx >= minutely15.time.length) break;
             const ts = minutely15.time[idx];
             const min = ts.substring(14, 16);
@@ -741,8 +741,9 @@ function renderChart(hourly, minutely15) {
                 lastHourTemp = hIdx !== -1 ? hourly.temperature_2m[hIdx] : null;
             }
             temps.push(lastHourTemp);
-            const p = minutely15.precipitation[idx] || 0;
-            rain.push(p > 0 ? p : 0);
+            const p0 = minutely15.precipitation[idx] || 0;
+            const p1 = minutely15.precipitation[idx + 1] || 0;
+            rain.push(p0 + p1);
         }
     } else {
         let startIndex = hourly.time.findIndex(t => t >= nowISO);
@@ -776,8 +777,8 @@ function renderChart(hourly, minutely15) {
         tooltip: { enabled: false }
     };
     const apexGrid = {
-        borderColor: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)',
-        xaxis: { lines: { show: false } }
+        borderColor: dark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.07)',
+        xaxis: { lines: { show: true } }
     };
     const xFormatter = (_, opts) => timestamps[opts?.dataPointIndex] ?? '';
 
@@ -1042,7 +1043,7 @@ function _renderUVChart(hourly, daily) {
     const uvInfoCur = getUVLevel(currentUVValue);
     if (currentEl) currentEl.innerText = currentUVValue.toFixed(1);
     if (maxEl) maxEl.innerText = maxUVom.toFixed(1);
-    if (levelEl) { levelEl.innerText = uvInfoCur.label; levelEl.className = `uv-badge ${uvInfoCur.cls}`; }
+    if (levelEl) { levelEl.innerText = uvInfoCur.label; levelEl.className = `uv-badge ${uvInfoCur.cls}${uvInfoCur.cls === 'uv-none' ? ' hidden' : ''}`; }
     if (tipEl) tipEl.innerText = uvInfoCur.tip;
 
     // Initial draw: Open-Meteo predicted + measured up to now
@@ -1081,7 +1082,7 @@ function _renderUVChart(hourly, daily) {
             currentEl.innerText = curVal.toFixed(1);
             currentEl.title = t('rivm_measured');
             const uvInfoRivm = getUVLevel(curVal);
-            if (levelEl) { levelEl.innerText = uvInfoRivm.label; levelEl.className = `uv-badge ${uvInfoRivm.cls}`; }
+            if (levelEl) { levelEl.innerText = uvInfoRivm.label; levelEl.className = `uv-badge ${uvInfoRivm.cls}${uvInfoRivm.cls === 'uv-none' ? ' hidden' : ''}`; }
             if (tipEl) tipEl.innerText = uvInfoRivm.tip;
         }
 
