@@ -527,6 +527,8 @@ async function reverseGeocode(lat, lon) {
         state.city = data.address.city || data.address.town || data.address.village || t('geocode_here');
         els.cityName.innerText = state.city;
         updateBuienradar();
+        saveLastLocation();
+        saveRecentLocation({ lat: state.lat, lon: state.lon, city: state.city });
     } catch (err) {
         els.cityName.innerText = t('geocode_unknown');
     }
