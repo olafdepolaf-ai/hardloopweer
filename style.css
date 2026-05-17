@@ -672,16 +672,8 @@ header {
 }
 
 #buienradar-frame {
-    width: 100%;
-    height: 380px;
     border: none;
     display: block;
-}
-
-@media (min-width: 480px) {
-    #buienradar-frame {
-        height: 500px;
-    }
 }
 
 .buienradar-credit {
