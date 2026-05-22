@@ -809,11 +809,9 @@ function updateUI(data) {
     const dp = data.hourly.dew_point_2m[hourIdx];
     if (els.dewPoint) els.dewPoint.innerText = `${Math.round(dp)}°`;
 
-    const weatherDesc = getWeatherDesc(current.weather_code);
-    if (els.weatherDesc) els.weatherDesc.innerText = weatherDesc;
     if (els.weatherIcon) {
         els.weatherIcon.src = getMeteoconSrc(current.weather_code, current.is_day);
-        els.weatherIcon.alt = weatherDesc;
+        els.weatherIcon.alt = getWeatherDesc(current.weather_code);
     }
     if (window.lucide) lucide.createIcons();
 
