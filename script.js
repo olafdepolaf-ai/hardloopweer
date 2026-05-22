@@ -610,9 +610,11 @@ function updateUI(data) {
         els.windArrow.style.transform = `rotate(${current.wind_direction_10m}deg)`;
     }
 
-    // Show Buienradar only when viewing a Dutch location
+    // Show Buienradar + weather report only when viewing a Dutch location
     const buienradarSection = document.getElementById('buienradar-section');
     if (buienradarSection) buienradarSection.classList.toggle('hidden', !isInNetherlands());
+    const weatherReportCard = document.getElementById('weather-report-card');
+    if (weatherReportCard && !isInNetherlands()) weatherReportCard.classList.add('hidden');
 
     const hourIdx = locationHour();
     const dp = data.hourly.dew_point_2m[hourIdx];
@@ -645,7 +647,10 @@ function updateUI(data) {
     }
     fetchWeatherAlerts().then(renderAlerts);
     fetchAQI();
-    if (isInNetherlands()) fetchBuienradarRain();
+    if (isInNetherlands()) {
+        fetchBuienradarRain();
+        fetchWeatherReport();
+    }
 }
 
 function updateComfortLevel(dewPoint, temp, forecastDewpointStatus = null) {
@@ -687,9 +692,9 @@ function updateComfortLevel(dewPoint, temp, forecastDewpointStatus = null) {
     }
 
     if (els.comfortLevel) {
-        els.comfortLevel.innerHTML = `<strong>${level}</strong>`;
+        els.comfortLevel.textContent = level;
     }
-    els.comfortContainer.className = `comfort-badge ${cssClass}`;
+    els.comfortContainer.className = `hero-weather-title`;
 }
 
 const METEOCON_BASE = 'https://cdn.jsdelivr.net/npm/@meteocons/svg@0.1.0/fill/';
@@ -900,6 +905,84 @@ async function fetchBuienradarRain() {
     }
 }
 
+async function fetchWeatherReport() {
+    const card = document.getElementById('weather-report-card');
+    if (!card) return;
+    try {
+        const res = await fetch('https://data.buienradar.nl/2.0/feed/json');
+        if (!res.ok) return;
+        const json = await res.json();
+        const forecast = json?.forecast;
+        if (!forecast) return;
+
+        const wr = forecast.weatherreport;
+        const shortterm = forecast.shortterm;
+        const longterm = forecast.longterm;
+        if (!wr) return;
+
+        // Update hero subtitle with meteorologist title
+        if (els.comfortContainer && wr.title) {
+            els.comfortLevel.textContent = wr.title;
+            els.comfortContainer.classList.remove('hidden');
+        }
+
+        const decodeHtml = s => s
+            .replace(/&nbsp;/g, ' ')
+            .replace(/&amp;/g, '&')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>')
+            .replace(/<[^>]+>/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        // Format published date from ISO string (treat as Dutch local time)
+        const formatDate = iso => {
+            const [datePart, timePart] = iso.split('T');
+            const [y, m, d] = datePart.split('-').map(Number);
+            const months = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+            const days = ['zo','ma','di','wo','do','vr','za'];
+            const dow = days[new Date(y, m - 1, d).getDay()];
+            return `${dow} ${d} ${months[m - 1]} ${y}, ${timePart.substring(0, 5)}`;
+        };
+
+        const formatDateRange = (start, end) => {
+            const months = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+            const s = start.split('T')[0].split('-').map(Number);
+            const e = end.split('T')[0].split('-').map(Number);
+            return `${s[2]} ${months[s[1]-1]} – ${e[2]} ${months[e[1]-1]}`;
+        };
+
+        const summaryEl = document.getElementById('weather-report-summary');
+        if (summaryEl) summaryEl.textContent = decodeHtml(wr.summary || '');
+
+        const textEl = document.getElementById('weather-report-text');
+        if (textEl) textEl.textContent = decodeHtml(wr.text || '');
+
+        const metaEl = document.getElementById('weather-report-meta');
+        if (metaEl) metaEl.textContent = `${formatDate(wr.published)} · ${wr.author}`;
+
+        const shorttermEl = document.getElementById('weather-shortterm');
+        if (shorttermEl && shortterm?.forecast) {
+            const range = shortterm.startdate && shortterm.enddate
+                ? `${formatDateRange(shortterm.startdate, shortterm.enddate)}: `
+                : '';
+            shorttermEl.textContent = range + shortterm.forecast;
+        }
+
+        const longtermEl = document.getElementById('weather-longterm');
+        if (longtermEl && longterm?.forecast) {
+            const range = longterm.startdate && longterm.enddate
+                ? `${formatDateRange(longterm.startdate, longterm.enddate)}: `
+                : '';
+            longtermEl.textContent = range + longterm.forecast;
+        }
+
+        card.classList.remove('hidden');
+    } catch (e) {
+        console.warn('fetchWeatherReport mislukt:', e.message);
+    }
+}
+
 function renderRainChartBuienradar(parsed) {
     if (!state.rainChart) return;
     const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -923,10 +1006,15 @@ function renderRainChartBuienradar(parsed) {
     state.rainChart.destroy();
     const rainEl = document.getElementById('rain-chart');
     if (!rainEl) return;
-    document.getElementById('rain-preview')?.classList.remove('hidden');
 
     // Scale y to data, minimum ceiling of 2 mm/u so empty charts look right
     const dataMax = Math.max(...data);
+    const rainPreviewEl = document.getElementById('rain-preview');
+    if (dataMax <= 0) {
+        if (rainPreviewEl) rainPreviewEl.classList.add('hidden');
+        return;
+    }
+    if (rainPreviewEl) rainPreviewEl.classList.remove('hidden');
     const yMax = Math.max(dataMax * 1.15, 2);
 
     state.rainChart = new ApexCharts(rainEl, {

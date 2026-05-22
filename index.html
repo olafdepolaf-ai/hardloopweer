@@ -97,16 +97,16 @@
                                 <div class="metric-item">
                                     <span class="label" data-i18n="label_air">Lucht</span>
                                     <button id="aqi-btn" class="aqi-metric-btn hidden" aria-label="Luchtkwaliteit">
+                                        <span class="aqi-dot-indicator"></span>
                                         <span id="aqi-level-text">--</span>
-                                        <i data-lucide="info" class="aqi-info-icon"></i>
                                     </button>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    <div id="comfort-container" class="comfort-badge hidden">
-                        <span id="comfort-level">--</span>
-                    </div>
+                    <p id="comfort-container" class="hero-weather-title hidden">
+                        <span id="comfort-level"></span>
+                    </p>
                 </section>
             </div>
 
@@ -114,6 +114,15 @@
                 <div class="chart-container chart-container-rain">
                     <div id="rain-chart"></div>
                 </div>
+            </section>
+
+            <section id="weather-report-card" class="card hidden">
+                <p id="weather-report-summary" class="weather-report-summary"></p>
+                <p id="weather-report-text" class="weather-report-body"></p>
+                <p id="weather-report-meta" class="weather-report-meta"></p>
+                <h4 class="weather-report-outlook-header">Vooruitzicht komende dagen</h4>
+                <p id="weather-shortterm" class="weather-report-outlook-item"></p>
+                <p id="weather-longterm" class="weather-report-outlook-item"></p>
             </section>
 
             <section id="running-recommendation" class="card">

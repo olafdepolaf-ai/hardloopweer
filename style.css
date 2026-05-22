@@ -393,6 +393,13 @@ header {
     margin-top: 8px;
 }
 
+.hero-weather-title {
+    margin-top: 10px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
 /* ── Running recommendation badge ────────────────────── */
 .badge {
     display: inline-block;
@@ -435,12 +442,47 @@ header {
 
 .warnings {
     margin-bottom: 16px;
-    padding: 16px;
-    border-radius: 16px;
     font-size: 0.95rem;
-    font-weight: 600;
+    line-height: 1.6;
     width: 100%;
     text-align: left;
+}
+
+/* ── Weather report card ──────────────────────────────── */
+.weather-report-summary {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 12px;
+}
+
+.weather-report-body {
+    font-size: 0.9rem;
+    line-height: 1.65;
+    margin-bottom: 12px;
+}
+
+.weather-report-meta {
+    font-size: 0.8rem;
+    opacity: 0.55;
+    margin-bottom: 16px;
+}
+
+.weather-report-outlook-header {
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.5;
+    margin-bottom: 8px;
+}
+
+.weather-report-outlook-item {
+    font-size: 0.9rem;
+    line-height: 1.55;
+    padding-left: 12px;
+    border-left: 2px solid currentColor;
+    opacity: 0.8;
+    margin-bottom: 8px;
 }
 
 /* ── AQI metric button ────────────────────────────────── */
@@ -451,22 +493,23 @@ header {
     padding: 0;
     display: flex;
     align-items: center;
-    gap: 3px;
+    gap: 5px;
     font-family: inherit;
     font-size: clamp(0.8rem, 2.8vw, 1rem);
     font-weight: 600;
-    color: var(--aqi-color, currentColor);
+    color: inherit;
     white-space: nowrap;
     text-align: center;
     justify-content: center;
 }
 
-.aqi-info-icon {
-    width: 11px;
-    height: 11px;
+.aqi-dot-indicator {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--aqi-color, #9e9e9e);
     flex-shrink: 0;
-    stroke-width: 2.5;
-    opacity: 0.65;
 }
 
 /* ── Secondary metric value (e.g. dew in gevoel/dauw) ─── */

@@ -129,16 +129,10 @@
 [data-theme="default"] #current-temp        { color: var(--text-primary); }
 [data-theme="default"] #weather-icon-container { color: var(--accent-warm); }
 
-/* ── Comfort badge ────────────────────────────────────── */
+/* ── Comfort badge (legacy, kept for beter-theme compat) ─ */
 [data-theme="default"] .comfort-badge {
-    background: #f8f9fa;
-    box-shadow: var(--elevation-1);
+    background: transparent;
 }
-[data-theme="default"] .comfort-badge.very-comfortable { color: #1e8e3e; background: #e6f4ea; }
-[data-theme="default"] .comfort-badge.comfortable      { color: #1e8e3e; background: #e6f4ea; }
-[data-theme="default"] .comfort-badge.humid            { color: #f9ab00; background: #fef7e0; }
-[data-theme="default"] .comfort-badge.uncomfortable    { color: #e37400; background: #feefe3; }
-[data-theme="default"] .comfort-badge.oppressive       { color: #d93025; background: #fce8e6; }
 
 /* ── Running recommendation / Badges ──────────────────── */
 [data-theme="default"] .badge {
@@ -152,8 +146,7 @@
 [data-theme="default"] .tip-content    { color: var(--text-primary); }
 [data-theme="default"] .clothing-list li::before { color: var(--accent); }
 [data-theme="default"] .warnings {
-    background: #fce8e6;
-    color: var(--danger-color);
+    color: var(--text-primary);
 }
 
 /* ── UV section ───────────────────────────────────────── */
