@@ -1196,12 +1196,10 @@ header {
     height: 10px;
     border-radius: 5px;
     background: linear-gradient(to right,
-        #168a4a 0%,
-        #92b000 27%,
-        #d89200 40%,
-        #e05a00 54%,
-        #c8221c 67%,
-        #7b1fa2 100%);
+        #57BB8A 0%,
+        #F9AB00 40%,
+        #F57C00 67%,
+        #D93025 100%);
     position: relative;
     margin-bottom: 5px;
 }

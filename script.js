@@ -1,3 +1,5 @@
+const WARN = { green: '#57BB8A', yellow: '#F9AB00', orange: '#F57C00', red: '#D93025', none: '#9E9E9E' };
+
 const FEATURE_THEME = 'beter'; // 'default' of 'beter'
 document.documentElement.dataset.theme = FEATURE_THEME;
 
@@ -584,7 +586,7 @@ function buildBftGauge(bft) {
     const nr = 28;
     const nx = cx + nr * Math.cos(angle);
     const ny = cy - nr * Math.sin(angle);
-    const colors = ['#57BB8A','#57BB8A','#92b000','#92b000','#d89200','#d89200','#e05a00','#e05a00','#c8221c','#c8221c','#7b1fa2','#7b1fa2','#7b1fa2'];
+    const colors = [WARN.green,WARN.green,WARN.green,WARN.green,WARN.yellow,WARN.yellow,WARN.orange,WARN.orange,WARN.red,WARN.red,WARN.red,WARN.red,WARN.red];
     const fill = colors[Math.min(bft, 12)];
     return `<svg viewBox="0 0 100 60" class="bft-gauge-svg" aria-hidden="true">
       <path d="M${startX} ${cy} A${r} ${r} 0 0 1 ${endX} ${cy}" fill="none" stroke="var(--border-soft,#e5e7eb)" stroke-width="7" stroke-linecap="round"/>
@@ -767,20 +769,17 @@ async function fetchWeather() {
 }
 
 function getWindDotColor(bft) {
-    if (bft <= 3) return '#57BB8A';
-    if (bft <= 5) return '#d89200';
-    if (bft <= 7) return '#e05a00';
-    if (bft <= 9) return '#c8221c';
-    return '#7b1fa2';
+    if (bft <= 3) return WARN.green;
+    if (bft <= 5) return WARN.yellow;
+    if (bft <= 7) return WARN.orange;
+    return WARN.red;
 }
 
 function getDewpointColor(dp) {
-    if (dp <= 10) return '#57BB8A';
-    if (dp <= 13) return '#92b000';
-    if (dp <= 16) return '#d89200';
-    if (dp <= 18) return '#e05a00';
-    if (dp <= 21) return '#c8221c';
-    return '#7b1fa2';
+    if (dp <= 10) return WARN.green;
+    if (dp <= 15) return WARN.yellow;
+    if (dp <= 18) return WARN.orange;
+    return WARN.red;
 }
 
 function getBeaufort(kmh) {
@@ -1540,17 +1539,17 @@ function renderChart(hourly, minutely15) {
 // ---- UV / Zonkracht ----
 
 const UV_ZONES = [
-    { min: 0,   max: 2.5,      color: '#57BB8A' },
-    { min: 2.5, max: 4.5,      color: '#F9AB00' },
-    { min: 4.5, max: 6.5,      color: '#F57C00' },
-    { min: 6.5, max: Infinity, color: '#D93025' }
+    { min: 0,   max: 2.5,      color: WARN.green  },
+    { min: 2.5, max: 4.5,      color: WARN.yellow },
+    { min: 4.5, max: 6.5,      color: WARN.orange },
+    { min: 6.5, max: Infinity, color: WARN.red    }
 ];
 
 function uvZoneColor(v) {
-    if (v < 2.5) return '#57BB8A';
-    if (v < 4.5) return '#F9AB00';
-    if (v < 6.5) return '#F57C00';
-    return '#D93025';
+    if (v < 2.5) return WARN.green;
+    if (v < 4.5) return WARN.yellow;
+    if (v < 6.5) return WARN.orange;
+    return WARN.red;
 }
 
 const canvasBgPlugin = {
@@ -1698,12 +1697,12 @@ function parseRIVMBands(props, startBand, endBand) {
 }
 
 function getAQILevel(aqi) {
-    if (aqi <= 20) return { label: t('aqi_good'),          color: '#168a4a', cls: 'aqi-good',      tipKey: 'good' };
-    if (aqi <= 40) return { label: t('aqi_fair'),          color: '#92b000', cls: 'aqi-fair',      tipKey: 'fair' };
-    if (aqi <= 60) return { label: t('aqi_moderate'),      color: '#d89200', cls: 'aqi-moderate',  tipKey: 'moderate' };
-    if (aqi <= 80) return { label: t('aqi_poor'),          color: '#e05a00', cls: 'aqi-poor',      tipKey: 'poor' };
-    if (aqi <= 100) return { label: t('aqi_very_poor'),    color: '#c8221c', cls: 'aqi-very-poor', tipKey: 'very_poor' };
-    return               { label: t('aqi_extremely_poor'), color: '#7b1fa2', cls: 'aqi-extreme',   tipKey: 'extreme' };
+    if (aqi <= 20) return { label: t('aqi_good'),          color: WARN.green,  cls: 'aqi-good',      tipKey: 'good' };
+    if (aqi <= 40) return { label: t('aqi_fair'),          color: WARN.yellow, cls: 'aqi-fair',      tipKey: 'fair' };
+    if (aqi <= 60) return { label: t('aqi_moderate'),      color: WARN.yellow, cls: 'aqi-moderate',  tipKey: 'moderate' };
+    if (aqi <= 80) return { label: t('aqi_poor'),          color: WARN.orange, cls: 'aqi-poor',      tipKey: 'poor' };
+    if (aqi <= 100) return { label: t('aqi_very_poor'),    color: WARN.red,    cls: 'aqi-very-poor', tipKey: 'very_poor' };
+    return               { label: t('aqi_extremely_poor'), color: WARN.red,    cls: 'aqi-extreme',   tipKey: 'extreme' };
 }
 
 function openAQIOverlay() {
@@ -1784,11 +1783,10 @@ async function fetchAQI() {
 
 function getUVLevel(uv) {
     if (uv < 1)   return { label: t('uv_none'),     cls: 'uv-none',      color: '#9E9E9E', tip: '' };
-    if (uv < 2.5) return { label: t('uv_low'),      cls: 'uv-low',       color: '#57BB8A', tip: '' };
-    // tip: t('uv_tip_none') / t('uv_tip_low') removed — no advice needed for low UV
-    if (uv < 4.5) return { label: t('uv_moderate'), cls: 'uv-moderate',  color: '#F9AB00', tip: t('uv_tip_moderate') };
-    if (uv < 6.5) return { label: t('uv_high'),     cls: 'uv-high',      color: '#F57C00', tip: t('uv_tip_high') };
-    return         { label: t('uv_very_high'),       cls: 'uv-very-high', color: '#D93025', tip: t('uv_tip_very_high') };
+    if (uv < 2.5) return { label: t('uv_low'),      cls: 'uv-low',       color: WARN.green,  tip: '' };
+    if (uv < 4.5) return { label: t('uv_moderate'), cls: 'uv-moderate',  color: WARN.yellow, tip: t('uv_tip_moderate') };
+    if (uv < 6.5) return { label: t('uv_high'),     cls: 'uv-high',      color: WARN.orange, tip: t('uv_tip_high') };
+    return         { label: t('uv_very_high'),       cls: 'uv-very-high', color: WARN.red,    tip: t('uv_tip_very_high') };
 }
 
 function renderUVChart(hourly, daily) {
