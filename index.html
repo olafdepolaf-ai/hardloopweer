@@ -64,7 +64,10 @@
             <div class="weather-hero-container">
                 <section id="weather-hero" class="card">
                     <div class="hero-content">
-                        <div class="hero-left">
+                        <div class="hero-left" data-metric="temp">
+                            <button class="metric-expand-btn" data-metric="temp" aria-label="Temperatuurdetails">
+                                <i data-lucide="chevron-down"></i>
+                            </button>
                             <img id="weather-icon" src="https://cdn.jsdelivr.net/npm/@meteocons/svg@0.1.0/fill/overcast.svg" alt="" class="weather-icon-main" width="80" height="80" onerror="this.src='https://cdn.jsdelivr.net/npm/@meteocons/svg@0.1.0/fill/overcast.svg'">
                             <div class="hero-temp-row">
                                 <span id="current-temp">--°</span>
@@ -82,25 +85,39 @@
                             </div>
                             <div class="weather-metrics">
                                 <div class="metric-item">
-                                    <span class="label" data-i18n="label_dew">Dauw</span>
+                                    <div class="metric-label-row">
+                                        <span class="label" data-i18n="label_dew">Dauw</span>
+                                    </div>
                                     <span id="dew-point" class="value">--°</span>
                                 </div>
-                                <div class="metric-item">
-                                    <span class="label" data-i18n="label_wind">Wind</span>
+                                <div class="metric-item expandable" data-metric="wind">
+                                    <div class="metric-label-row">
+                                        <span class="label" data-i18n="label_wind">Wind</span>
+                                        <button class="metric-expand-btn" data-metric="wind" aria-label="Winddetails">
+                                            <i data-lucide="chevron-down"></i>
+                                        </button>
+                                    </div>
                                     <div class="wind-display">
                                         <span id="wind-force" class="value">-- Bft</span>
                                         <i id="wind-arrow" data-lucide="arrow-up" class="wind-arrow"></i>
                                     </div>
                                 </div>
-                                <div class="metric-item">
-                                    <span class="label">UV</span>
+                                <div class="metric-item expandable" data-metric="uv">
+                                    <div class="metric-label-row">
+                                        <span class="label">UV</span>
+                                        <button class="metric-expand-btn" data-metric="uv" aria-label="UV-details">
+                                            <i data-lucide="chevron-down"></i>
+                                        </button>
+                                    </div>
                                     <span id="hero-uv" class="value">--</span>
                                 </div>
-                                <div class="metric-item aqi-metric-wrapper">
-                                    <button id="aqi-expand-btn" class="aqi-expand-btn hidden" title="Details luchtkwaliteit">
-                                        <i data-lucide="maximize-2"></i>
-                                    </button>
-                                    <span class="label" data-i18n="label_air">Lucht</span>
+                                <div class="metric-item aqi-metric-wrapper expandable" data-metric="aqi">
+                                    <div class="metric-label-row">
+                                        <span class="label" data-i18n="label_air">Lucht</span>
+                                        <button id="aqi-expand-btn" class="metric-expand-btn hidden" data-metric="aqi" aria-label="Luchtkwaliteit details">
+                                            <i data-lucide="chevron-down"></i>
+                                        </button>
+                                    </div>
                                     <button id="aqi-btn" class="aqi-metric-btn hidden" aria-label="Luchtkwaliteit">
                                         <span class="aqi-dot-indicator"></span>
                                         <span id="aqi-level-text">--</span>
@@ -112,6 +129,42 @@
                     <p id="comfort-container" class="hero-weather-title hidden">
                         <span id="comfort-level"></span>
                     </p>
+                </section>
+            </div>
+
+            <div id="metric-expand-area" class="metric-expand-area">
+                <section id="metric-panel-temp" class="card metric-panel">
+                    <div class="chart-container">
+                        <div id="temp-chart"></div>
+                    </div>
+                    <div class="chart-container chart-container-secondary">
+                        <div id="dewpoint-chart"></div>
+                    </div>
+                    <div id="dewpoint-status" class="dewpoint-status hidden" aria-live="polite">
+                        <span class="dewpoint-status-dot"></span>
+                        <span id="dewpoint-status-text"></span>
+                    </div>
+                </section>
+                <section id="metric-panel-wind" class="card metric-panel">
+                    <div id="wind-detail-content" class="wind-detail-content"></div>
+                </section>
+                <section id="metric-panel-uv" class="card metric-panel">
+                    <h3 data-i18n="section_uv">Zonkracht</h3>
+                    <div class="uv-current-row">
+                        <span id="uv-current" class="uv-stat-value">--</span>
+                        <span id="uv-level" class="uv-badge">--</span>
+                    </div>
+                    <div class="uv-max-row">
+                        <span class="uv-stat-label" data-i18n="uv_max_label">Max. verwacht</span>
+                        <span id="uv-max" class="uv-stat-secondary">--</span>
+                    </div>
+                    <div class="uv-chart-container">
+                        <canvas id="uv-chart"></canvas>
+                    </div>
+                    <p id="uv-tip" class="uv-tip"></p>
+                </section>
+                <section id="metric-panel-aqi" class="card metric-panel">
+                    <div id="aqi-panel-body"></div>
                 </section>
             </div>
 
@@ -137,35 +190,6 @@
                 <h3 data-i18n="clothing_title">Wat trekken we aan?</h3>
                 <div id="clothing-tip" class="tip-content">
                     <p id="loading-text" data-i18n="loading">Weer ophalen voor advies...</p>
-                </div>
-            </section>
-
-            <section id="uv-section" class="card">
-                <h3 data-i18n="section_uv">Zonkracht</h3>
-                <div class="uv-current-row">
-                    <span id="uv-current" class="uv-stat-value">--</span>
-                    <span id="uv-level" class="uv-badge">--</span>
-                </div>
-                <div class="uv-max-row">
-                    <span class="uv-stat-label" data-i18n="uv_max_label">Max. verwacht</span>
-                    <span id="uv-max" class="uv-stat-secondary">--</span>
-                </div>
-                <div class="uv-chart-container">
-                    <canvas id="uv-chart"></canvas>
-                </div>
-                <p id="uv-tip" class="uv-tip"></p>
-            </section>
-
-            <section id="forecast-mini" class="card">
-                <div class="chart-container">
-                    <div id="temp-chart"></div>
-                </div>
-                <div class="chart-container chart-container-secondary">
-                    <div id="dewpoint-chart"></div>
-                </div>
-                <div id="dewpoint-status" class="dewpoint-status hidden" aria-live="polite">
-                    <span class="dewpoint-status-dot"></span>
-                    <span id="dewpoint-status-text"></span>
                 </div>
             </section>
 

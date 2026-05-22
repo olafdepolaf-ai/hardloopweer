@@ -506,7 +506,8 @@
         margin-bottom: 0;
     }
 
-    [data-theme="beter"] #alerts-section {
+    [data-theme="beter"] #alerts-section,
+    [data-theme="beter"] #metric-expand-area {
         grid-column: 1 / -1;
         column-span: none;
     }

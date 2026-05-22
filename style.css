@@ -924,6 +924,124 @@ header {
     line-height: 1.4;
 }
 
+/* ── Metric expand panels ─────────────────────────────── */
+.metric-expand-area {
+    width: 100%;
+}
+
+.metric-panel {
+    max-height: 0;
+    overflow: hidden;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-bottom: 0;
+    border-width: 0;
+    transition: max-height 0.35s ease, padding 0.25s ease, margin 0.25s ease, border-width 0.25s ease;
+    pointer-events: none;
+}
+
+.metric-panel.expanded {
+    max-height: 2000px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+    margin-bottom: 16px;
+    border-width: 1px;
+    pointer-events: auto;
+}
+
+/* ── Metric expand buttons ────────────────────────────── */
+.metric-expand-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    opacity: 0.4;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+}
+
+.metric-expand-btn:hover { opacity: 0.8; }
+.metric-expand-btn.active { opacity: 1; }
+
+.metric-expand-btn i[data-lucide] {
+    width: 13px;
+    height: 13px;
+    stroke-width: 2.5;
+    transition: transform 0.25s ease;
+}
+
+.metric-expand-btn.active i[data-lucide] {
+    transform: rotate(180deg);
+}
+
+/* Hero-left expand button (temp) */
+.hero-left {
+    position: relative;
+}
+
+.hero-left .metric-expand-btn {
+    position: absolute;
+    top: 0;
+    right: 0;
+}
+
+/* Label row: label + chevron on same line */
+.metric-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2px;
+    width: 100%;
+}
+
+/* Active underline indicator */
+.metric-item.metric-active,
+.hero-left.metric-active {
+    border-bottom: 2px solid var(--text-primary, #111);
+    padding-bottom: 2px;
+}
+
+/* ── Wind panel ───────────────────────────────────────── */
+.wind-panel-grid {
+    display: flex;
+    gap: 32px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.wind-panel-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 56px;
+}
+
+.wind-panel-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.wind-panel-label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    opacity: 0.55;
+}
+
+.wind-panel-arrow {
+    width: 32px;
+    height: 32px;
+    stroke-width: 2;
+    display: block;
+    margin-bottom: 2px;
+}
+
 /* ── Utilities ────────────────────────────────────────── */
 .hidden {
     display: none !important;
@@ -1022,12 +1140,14 @@ i[data-lucide] {
         break-inside: avoid;
     }
 
-    #alerts-section {
+    #alerts-section,
+    #metric-expand-area {
         column-span: all;
     }
 
     .weather-hero-container {
-        margin-bottom: 20px;
+        column-span: all;
+        margin-bottom: 0;
     }
 
     .chart-container {

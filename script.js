@@ -90,7 +90,8 @@ const els = {
     searchToggle: document.getElementById('search-toggle'),
     searchSuggestions: document.getElementById('search-suggestions'),
     aqiOverlay: document.getElementById('aqi-overlay'),
-    aqiOverlayBody: document.getElementById('aqi-overlay-body')
+    aqiOverlayBody: document.getElementById('aqi-overlay-body'),
+    aqiPanelBody: document.getElementById('aqi-panel-body')
 };
 
 let state = {
@@ -116,6 +117,8 @@ let state = {
         buienradarRain: '–'
     }
 };
+
+let activeMetric = null;
 
 // Current hour at the searched location (not device local time)
 function locationHour() {
@@ -404,7 +407,13 @@ async function init() {
         btn.textContent = isExpanded ? 'Lees minder' : 'Lees meer';
     });
 
-    // AQI overlay
+    // Metric expand panels (accordion)
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.metric-expand-btn');
+        if (btn?.dataset.metric) toggleMetricPanel(btn.dataset.metric);
+    });
+
+    // AQI overlay (kept for backwards compat)
     document.getElementById('aqi-overlay-close')?.addEventListener('click', closeAQIOverlay);
     document.getElementById('aqi-overlay-backdrop')?.addEventListener('click', closeAQIOverlay);
 
@@ -525,6 +534,67 @@ function updateBuienradar() {
     if (!els.buienradarFrame) return;
     els.buienradarFrame.src = `https://gadgets.buienradar.nl/gadget/zoommap/?lat=${state.lat}&lng=${state.lon}&overname=2&zoom=10&pins=0&naam=${encodeURIComponent(state.city)}`;
     scaleBuienradar();
+}
+
+function degreesToCompass(deg) {
+    const dirs = ['N','NNO','NO','ONO','O','OZO','ZO','ZZO','Z','ZZW','ZW','WZW','W','WNW','NW','NNW'];
+    return dirs[Math.round(deg / 22.5) % 16];
+}
+
+function toggleMetricPanel(key) {
+    const panelId = `metric-panel-${key}`;
+
+    const collapseAll = () => {
+        document.querySelectorAll('.metric-panel').forEach(p => p.classList.remove('expanded'));
+        document.querySelectorAll('.metric-expand-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.metric-item[data-metric], .hero-left[data-metric]').forEach(el => el.classList.remove('metric-active'));
+    };
+
+    if (activeMetric === key) {
+        collapseAll();
+        activeMetric = null;
+        return;
+    }
+
+    collapseAll();
+    activeMetric = key;
+
+    document.getElementById(panelId)?.classList.add('expanded');
+    document.querySelectorAll(`.metric-expand-btn[data-metric="${key}"]`).forEach(b => b.classList.add('active'));
+    document.querySelectorAll(`.metric-item[data-metric="${key}"], .hero-left[data-metric="${key}"]`).forEach(el => el.classList.add('metric-active'));
+
+    setTimeout(() => {
+        if (key === 'temp' && state._lastHourly) renderChart(state._lastHourly, state._lastMinutely15);
+        if (key === 'uv' && state._lastHourly) renderUVChart(state._lastHourly, state._lastDaily);
+        if (key === 'wind' && state._lastCurrent) renderWindPanel(state._lastCurrent);
+    }, 50);
+}
+
+function renderWindPanel(data) {
+    const el = document.getElementById('wind-detail-content');
+    if (!el || !data) return;
+    const bft = getBeaufort(data.wind_speed_10m);
+    const kmh = Math.round(data.wind_speed_10m);
+    const dir = degreesToCompass(data.wind_direction_10m);
+    const deg = data.wind_direction_10m;
+
+    el.innerHTML = `
+        <div class="wind-panel-grid">
+            <div class="wind-panel-stat">
+                <span class="wind-panel-value">${bft}</span>
+                <span class="wind-panel-label">Bft</span>
+            </div>
+            <div class="wind-panel-stat">
+                <span class="wind-panel-value">${kmh}</span>
+                <span class="wind-panel-label">km/u</span>
+            </div>
+            <div class="wind-panel-stat">
+                <i data-lucide="arrow-up" class="wind-panel-arrow" style="transform:rotate(${deg}deg)"></i>
+                <span class="wind-panel-label">${dir}</span>
+            </div>
+        </div>
+    `;
+    if (window.lucide) lucide.createIcons();
 }
 
 function scaleBuienradar() {
@@ -653,6 +723,8 @@ function updateUI(data) {
     }
     const weatherReportCard = document.getElementById('weather-report-card');
     if (weatherReportCard && !isInNetherlands()) weatherReportCard.classList.add('hidden');
+
+    state._lastCurrent = current;
 
     const hourIdx = locationHour();
     const dp = data.hourly.dew_point_2m[hourIdx];
@@ -1577,26 +1649,26 @@ async function fetchAQI() {
         const no2  = c.nitrogen_dioxide?.toFixed(1) ?? '–';
         const o3   = c.ozone?.toFixed(1) ?? '–';
 
-        if (els.aqiOverlayBody) {
-            els.aqiOverlayBody.innerHTML = `
-                <div class="aqi-overlay-header">
-                    <span class="aqi-panel-dot" style="background:${level.color}"></span>
-                    <span class="aqi-overlay-title">${escHtml(t('aqi_label'))}</span>
-                    <span class="aqi-panel-index">${aqi}</span>
-                    <span class="aqi-overlay-level ${level.cls}">${escHtml(level.label)}</span>
-                </div>
-                <div class="aqi-panel-grid">
-                    <div class="aqi-pollutant"><span class="aqi-pollutant-name">PM2.5</span><span class="aqi-pollutant-val">${pm25} µg/m³</span></div>
-                    <div class="aqi-pollutant"><span class="aqi-pollutant-name">PM10</span><span class="aqi-pollutant-val">${pm10} µg/m³</span></div>
-                    <div class="aqi-pollutant"><span class="aqi-pollutant-name">NO₂</span><span class="aqi-pollutant-val">${no2} µg/m³</span></div>
-                    <div class="aqi-pollutant"><span class="aqi-pollutant-name">O₃</span><span class="aqi-pollutant-val">${o3} µg/m³</span></div>
-                </div>
-                <p class="aqi-panel-tip">${escHtml(t('aqi_tip_' + level.tipKey))}</p>
-            `;
-        }
+        const aqiHtml = `
+            <div class="aqi-overlay-header">
+                <span class="aqi-panel-dot" style="background:${level.color}"></span>
+                <span class="aqi-overlay-title">${escHtml(t('aqi_label'))}</span>
+                <span class="aqi-panel-index">${aqi}</span>
+                <span class="aqi-overlay-level ${level.cls}">${escHtml(level.label)}</span>
+            </div>
+            <div class="aqi-panel-grid">
+                <div class="aqi-pollutant"><span class="aqi-pollutant-name">PM2.5</span><span class="aqi-pollutant-val">${pm25} µg/m³</span></div>
+                <div class="aqi-pollutant"><span class="aqi-pollutant-name">PM10</span><span class="aqi-pollutant-val">${pm10} µg/m³</span></div>
+                <div class="aqi-pollutant"><span class="aqi-pollutant-name">NO₂</span><span class="aqi-pollutant-val">${no2} µg/m³</span></div>
+                <div class="aqi-pollutant"><span class="aqi-pollutant-name">O₃</span><span class="aqi-pollutant-val">${o3} µg/m³</span></div>
+            </div>
+            <p class="aqi-panel-tip">${escHtml(t('aqi_tip_' + level.tipKey))}</p>
+        `;
+        if (els.aqiOverlayBody) els.aqiOverlayBody.innerHTML = aqiHtml;
+        if (els.aqiPanelBody) els.aqiPanelBody.innerHTML = aqiHtml;
 
-        btn.onclick = openAQIOverlay;
-        if (expandBtn) expandBtn.onclick = openAQIOverlay;
+        btn.onclick = () => toggleMetricPanel('aqi');
+        if (expandBtn) expandBtn.onclick = () => toggleMetricPanel('aqi');
     } catch (e) {
         console.warn('AQI niet beschikbaar:', e);
     }
