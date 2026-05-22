@@ -1110,18 +1110,15 @@ async function fetchWeatherReport() {
         // Show API headline as bold title of the weather report card
         const reportTitleEl = document.getElementById('weather-report-title');
         if (reportTitleEl && wr.title) {
-            reportTitleEl.textContent = wr.title;
+            reportTitleEl.innerHTML = wr.title;
             reportTitleEl.classList.remove('hidden');
         }
 
-        const decodeHtml = s => s
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/<[^>]+>/g, '')
-            .replace(/\s+/g, ' ')
-            .trim();
+        const decodeHtml = s => {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = s.replace(/<[^>]+>/g, ' ');
+            return (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
+        };
 
         // Format published time relative to today
         const formatPublishedTime = iso => {
