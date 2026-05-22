@@ -613,8 +613,14 @@ function renderWindPanel() {
     el.innerHTML = `
         <div class="wind-panel-top">
             <div class="wind-gauge-col">
-                ${buildBftGauge(bft)}
-                <div class="wind-bft-label"><strong>${bft}</strong> Bft</div>
+                <div class="wind-gauge-inner">
+                    ${buildBftGauge(bft)}
+                    <div class="wind-bft-label"><strong>${bft}</strong> Bft</div>
+                </div>
+                <div class="wind-compass-col">
+                    <i data-lucide="navigation" class="wind-nav-icon" style="transform:rotate(${deg}deg)"></i>
+                    <span class="wind-dir-text">${dir}</span>
+                </div>
             </div>
             <div class="wind-stats-col">
                 <div class="wind-big-stat">
@@ -622,10 +628,6 @@ function renderWindPanel() {
                     <span class="wind-big-unit">km/u</span>
                 </div>
                 ${gustKmh ? `<div class="wind-gust-row"><span class="wind-gust-label">Windstoten</span><span class="wind-gust-val">${gustKmh} km/u · ${gustBft} Bft</span></div>` : ''}
-            </div>
-            <div class="wind-compass-col">
-                <i data-lucide="navigation" class="wind-nav-icon" style="transform:rotate(${deg}deg)"></i>
-                <span class="wind-dir-text">${dir}</span>
             </div>
         </div>
         <div class="wind-chart-wrap">

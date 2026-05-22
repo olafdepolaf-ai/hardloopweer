@@ -1028,13 +1028,20 @@ header {
 /* ── Wind panel ───────────────────────────────────────── */
 .wind-panel-top {
     display: grid;
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: auto 1fr;
     gap: 16px 28px;
     align-items: center;
     margin-bottom: 20px;
 }
 
 .wind-gauge-col {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+}
+
+.wind-gauge-inner {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1123,17 +1130,11 @@ header {
 
 @media (max-width: 500px) {
     .wind-panel-top {
-        grid-template-columns: 1fr 1fr;
-        grid-template-rows: auto auto;
+        grid-template-columns: 1fr;
     }
 
-    .wind-stats-col {
-        grid-column: 1 / -1;
-        flex-direction: row;
-        align-items: center;
-        gap: 24px;
-        padding-top: 12px;
-        border-top: 1px solid var(--border-soft, rgba(0,0,0,0.08));
+    .wind-gauge-col {
+        justify-content: center;
     }
 
     .bft-gauge-svg {
