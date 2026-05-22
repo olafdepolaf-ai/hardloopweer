@@ -81,6 +81,7 @@
                             <div class="weather-metrics">
                                 <div class="metric-item expandable" data-metric="temp">
                                     <div class="metric-label-row">
+                                        <i data-lucide="thermometer" class="metric-icon"></i>
                                         <span class="label" data-i18n="label_feels">Gevoel</span>
                                         <button class="metric-expand-btn" data-metric="temp" aria-label="Temperatuurdetails">
                                             <i data-lucide="chevron-down"></i>
@@ -90,6 +91,7 @@
                                 </div>
                                 <div class="metric-item expandable" data-metric="wind">
                                     <div class="metric-label-row">
+                                        <i data-lucide="wind" class="metric-icon"></i>
                                         <span class="label" data-i18n="label_wind">Wind</span>
                                         <button class="metric-expand-btn" data-metric="wind" aria-label="Winddetails">
                                             <i data-lucide="chevron-down"></i>
@@ -102,6 +104,7 @@
                                 </div>
                                 <div class="metric-item expandable" data-metric="uv">
                                     <div class="metric-label-row">
+                                        <i data-lucide="sun" class="metric-icon"></i>
                                         <span class="label">UV</span>
                                         <button class="metric-expand-btn" data-metric="uv" aria-label="UV-details">
                                             <i data-lucide="chevron-down"></i>
@@ -111,6 +114,7 @@
                                 </div>
                                 <div class="metric-item aqi-metric-wrapper expandable" data-metric="aqi">
                                     <div class="metric-label-row">
+                                        <i data-lucide="leaf" class="metric-icon"></i>
                                         <span class="label" data-i18n="label_air">Lucht</span>
                                         <button id="aqi-expand-btn" class="metric-expand-btn hidden" data-metric="aqi" aria-label="Luchtkwaliteit details">
                                             <i data-lucide="chevron-down"></i>
@@ -173,6 +177,7 @@
             </section>
 
             <section id="weather-report-card" class="card hidden">
+                <h3 id="weather-report-title" class="weather-report-title hidden"></h3>
                 <p id="weather-report-summary" class="weather-report-summary"></p>
                 <button id="weather-report-toggle" class="weather-report-toggle">Lees meer</button>
                 <div id="weather-report-details" class="weather-report-details">

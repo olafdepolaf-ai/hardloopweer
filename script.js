@@ -102,6 +102,7 @@ let state = {
     rainChart: null,
     dewpointChart: null,
     uvChart: null,
+    windChart: null,
     weatherRequestId: 0,
     renderedWeatherRequestId: 0,
     utcOffsetSeconds: 3600,
@@ -567,35 +568,108 @@ function toggleMetricPanel(key) {
     setTimeout(() => {
         if (key === 'temp' && state._lastHourly) renderChart(state._lastHourly, state._lastMinutely15);
         if (key === 'uv' && state._lastHourly) renderUVChart(state._lastHourly, state._lastDaily);
-        if (key === 'wind' && state._lastCurrent) renderWindPanel(state._lastCurrent);
+        if (key === 'wind') renderWindPanel();
     }, 360);
 }
 
-function renderWindPanel(data) {
+function buildBftGauge(bft) {
+    const r = 40, cx = 50, cy = 52;
+    const startX = cx - r, endX = cx + r;
+    const angle = (1 - Math.min(bft, 12) / 12) * Math.PI;
+    const curX = cx + r * Math.cos(angle);
+    const curY = cy - r * Math.sin(angle);
+    const largeArc = bft > 6 ? 1 : 0;
+    const nr = 28;
+    const nx = cx + nr * Math.cos(angle);
+    const ny = cy - nr * Math.sin(angle);
+    const colors = ['#57BB8A','#57BB8A','#92b000','#92b000','#d89200','#d89200','#e05a00','#e05a00','#c8221c','#c8221c','#7b1fa2','#7b1fa2','#7b1fa2'];
+    const fill = colors[Math.min(bft, 12)];
+    return `<svg viewBox="0 0 100 60" class="bft-gauge-svg" aria-hidden="true">
+      <path d="M${startX} ${cy} A${r} ${r} 0 0 1 ${endX} ${cy}" fill="none" stroke="var(--border-soft,#e5e7eb)" stroke-width="7" stroke-linecap="round"/>
+      ${bft > 0 ? `<path d="M${startX} ${cy} A${r} ${r} 0 ${largeArc} 1 ${curX.toFixed(1)} ${curY.toFixed(1)}" fill="none" stroke="${fill}" stroke-width="7" stroke-linecap="round"/>` : ''}
+      <line x1="${cx}" y1="${cy}" x2="${nx.toFixed(1)}" y2="${ny.toFixed(1)}" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="${cx}" cy="${cy}" r="3.5" fill="currentColor"/>
+      <text x="${startX - 1}" y="${cy + 11}" font-size="7" fill="currentColor" opacity="0.45" text-anchor="middle">1</text>
+      <text x="${cx}" y="8" font-size="7" fill="currentColor" opacity="0.45" text-anchor="middle">6</text>
+      <text x="${endX + 1}" y="${cy + 11}" font-size="7" fill="currentColor" opacity="0.45" text-anchor="middle">12</text>
+    </svg>`;
+}
+
+function renderWindPanel() {
     const el = document.getElementById('wind-detail-content');
+    const data = state._lastCurrent;
+    const hourly = state._lastHourly;
     if (!el || !data) return;
+
     const bft = getBeaufort(data.wind_speed_10m);
     const kmh = Math.round(data.wind_speed_10m);
     const dir = degreesToCompass(data.wind_direction_10m);
     const deg = data.wind_direction_10m;
+    const hourIdx = locationHour();
+    const gust = hourly?.wind_gusts_10m?.[hourIdx];
+    const gustKmh = gust ? Math.round(gust) : null;
+    const gustBft = gustKmh ? getBeaufort(gustKmh) : null;
 
     el.innerHTML = `
-        <div class="wind-panel-grid">
-            <div class="wind-panel-stat">
-                <span class="wind-panel-value">${bft}</span>
-                <span class="wind-panel-label">Bft</span>
+        <div class="wind-panel-stats">
+            <div class="wind-panel-gauge-col">
+                ${buildBftGauge(bft)}
+                <div class="wind-panel-bft-label"><strong>${bft}</strong> Beaufort</div>
             </div>
-            <div class="wind-panel-stat">
-                <span class="wind-panel-value">${kmh}</span>
-                <span class="wind-panel-label">km/u</span>
+            <div class="wind-panel-info-col">
+                <div class="wind-info-row"><span class="wind-info-label">Snelheid</span><span class="wind-info-val">${kmh} km/u</span></div>
+                ${gustKmh ? `<div class="wind-info-row"><span class="wind-info-label">Windstoten</span><span class="wind-info-val">${gustKmh} km/u · ${gustBft} Bft</span></div>` : ''}
+                <div class="wind-info-row"><span class="wind-info-label">Richting</span><span class="wind-info-val">${dir}</span></div>
             </div>
-            <div class="wind-panel-stat">
-                <i data-lucide="arrow-up" class="wind-panel-arrow" style="transform:rotate(${deg}deg)"></i>
-                <span class="wind-panel-label">${dir}</span>
+            <div class="wind-panel-compass-col">
+                <i data-lucide="navigation" class="wind-compass-icon" style="transform:rotate(${deg}deg)"></i>
+                <span class="wind-compass-label">${dir}</span>
             </div>
         </div>
+        <div id="wind-speed-chart" class="wind-speed-chart-container"></div>
     `;
     if (window.lucide) lucide.createIcons();
+    if (hourly?.wind_speed_10m) renderWindSpeedChart(hourly);
+}
+
+function renderWindSpeedChart(hourly) {
+    const el = document.getElementById('wind-speed-chart');
+    if (!el) return;
+    const today = locationISO().substring(0, 10);
+    let startIdx = hourly.time.findIndex(t => t.startsWith(today));
+    if (startIdx === -1) startIdx = 0;
+    startIdx += locationHour();
+
+    const labels = [], speeds = [], gusts = [];
+    for (let i = 0; i < 25 && startIdx + i < hourly.time.length; i++) {
+        const idx = startIdx + i;
+        labels.push(hourly.time[idx].substring(11, 16));
+        speeds.push(Math.round(hourly.wind_speed_10m?.[idx] ?? 0));
+        if (hourly.wind_gusts_10m) gusts.push(Math.round(hourly.wind_gusts_10m[idx] ?? 0));
+    }
+
+    if (state.windChart) { state.windChart.destroy(); state.windChart = null; }
+    const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const theme = chartTheme();
+
+    const series = [{ name: 'Wind (km/u)', data: speeds }];
+    if (gusts.length) series.push({ name: 'Windstoten', data: gusts });
+
+    state.windChart = new ApexCharts(el, {
+        series,
+        chart: { type: 'area', height: 160, background: 'transparent', toolbar: { show: false }, animations: { enabled: false }, fontFamily: 'inherit' },
+        theme: { mode: dark ? 'dark' : 'light' },
+        dataLabels: { enabled: false },
+        stroke: { curve: 'smooth', width: [2, 1.5], dashArray: [0, 5] },
+        fill: { type: ['gradient', 'solid'], gradient: { shade: 'light', type: 'vertical', opacityFrom: 0.4, opacityTo: 0.02 }, opacity: [1, 0] },
+        colors: ['#3b82f6', '#94a3b8'],
+        xaxis: { categories: labels, tickAmount: 6, labels: { style: { fontSize: '10px', colors: theme.labelColor } }, axisBorder: { show: false }, axisTicks: { show: false } },
+        yaxis: { min: 0, labels: { style: { fontSize: '10px', colors: theme.labelColor } } },
+        grid: { borderColor: theme.gridColor, strokeDashArray: 3 },
+        legend: { show: gusts.length > 0, fontSize: '11px' },
+        tooltip: { y: { formatter: v => `${v} km/u` } },
+    });
+    state.windChart.render();
 }
 
 function scaleBuienradar() {
@@ -662,7 +736,7 @@ async function fetchWeather() {
         latitude: requestLocation.lat,
         longitude: requestLocation.lon,
         current: ['temperature_2m', 'apparent_temperature', 'is_day', 'weather_code', 'wind_speed_10m', 'wind_direction_10m'],
-        hourly: ['temperature_2m', 'weather_code', 'dew_point_2m', 'precipitation', 'uv_index'],
+        hourly: ['temperature_2m', 'weather_code', 'dew_point_2m', 'precipitation', 'uv_index', 'wind_speed_10m', 'wind_gusts_10m'],
         minutely_15: ['precipitation'],
         daily: ['sunrise', 'sunset'],
         timezone: 'auto',
@@ -770,7 +844,6 @@ function updateComfortLevel(dewPoint, temp, forecastDewpointStatus = null) {
     const sum = tempF + dpF;
 
     if (!els.comfortContainer) return;
-    els.comfortContainer.classList.remove('hidden');
     let level = "";
     let cssClass = "";
 
@@ -805,7 +878,7 @@ function updateComfortLevel(dewPoint, temp, forecastDewpointStatus = null) {
     if (els.comfortLevel) {
         els.comfortLevel.textContent = level;
     }
-    els.comfortContainer.className = `hero-weather-title`;
+    els.comfortContainer.className = `hero-weather-title hidden`;
 }
 
 const METEOCON_BASE = 'https://cdn.jsdelivr.net/npm/@meteocons/svg@0.1.0/fill/';
@@ -1032,9 +1105,11 @@ async function fetchWeatherReport() {
         const longterm = forecast.longterm;
         if (!wr) return;
 
-        // Update hero weather description with API headline (NL only)
-        if (els.weatherDesc && wr.title) {
-            els.weatherDesc.innerText = wr.title;
+        // Show API headline as bold title of the weather report card
+        const reportTitleEl = document.getElementById('weather-report-title');
+        if (reportTitleEl && wr.title) {
+            reportTitleEl.textContent = wr.title;
+            reportTitleEl.classList.remove('hidden');
         }
 
         const decodeHtml = s => s

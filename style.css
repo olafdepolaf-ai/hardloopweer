@@ -1005,41 +1005,102 @@ header {
     padding-bottom: 2px;
 }
 
-/* ── Wind panel ───────────────────────────────────────── */
-.wind-panel-grid {
-    display: flex;
-    gap: 32px;
-    align-items: flex-end;
-    flex-wrap: wrap;
+/* ── Metric label icons ───────────────────────────────── */
+.metric-icon {
+    width: 13px;
+    height: 13px;
+    flex-shrink: 0;
+    opacity: 0.55;
+    stroke-width: 2;
 }
 
-.wind-panel-stat {
+/* ── Weather report title ─────────────────────────────── */
+.weather-report-title {
+    font-weight: 700;
+    font-size: 1.05rem;
+    margin: 0 0 14px;
+    line-height: 1.3;
+}
+
+/* ── Wind panel ───────────────────────────────────────── */
+.wind-panel-stats {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.wind-panel-gauge-col {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2px;
-    min-width: 56px;
+    gap: 4px;
+    min-width: 90px;
 }
 
-.wind-panel-value {
-    font-size: 2rem;
-    font-weight: 700;
-    line-height: 1;
+.bft-gauge-svg {
+    width: 90px;
+    height: auto;
 }
 
-.wind-panel-label {
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+.wind-panel-bft-label {
+    font-size: 0.82rem;
+    opacity: 0.6;
+    text-align: center;
+}
+
+.wind-panel-bft-label strong {
+    font-size: 1.1rem;
+    opacity: 1;
+}
+
+.wind-panel-info-col {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex: 1;
+    min-width: 130px;
+}
+
+.wind-info-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 0.88rem;
+}
+
+.wind-info-label {
     opacity: 0.55;
 }
 
-.wind-panel-arrow {
-    width: 32px;
-    height: 32px;
-    stroke-width: 2;
-    display: block;
-    margin-bottom: 2px;
+.wind-info-val {
+    font-weight: 500;
+}
+
+.wind-panel-compass-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    min-width: 56px;
+}
+
+.wind-compass-icon {
+    width: 36px;
+    height: 36px;
+    stroke-width: 1.5;
+    opacity: 0.75;
+}
+
+.wind-compass-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    opacity: 0.7;
+}
+
+.wind-speed-chart-container {
+    width: 100%;
 }
 
 /* ── Utilities ────────────────────────────────────────── */
