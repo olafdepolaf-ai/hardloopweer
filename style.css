@@ -938,6 +938,9 @@ header {
     border-width: 0;
     transition: max-height 0.35s ease, padding 0.25s ease, margin 0.25s ease, border-width 0.25s ease;
     pointer-events: none;
+    max-width: none;
+    width: 100%;
+    align-items: stretch;
 }
 
 .metric-panel.expanded {
