@@ -434,13 +434,47 @@ header {
 }
 
 .warnings {
-    margin-top: 16px;
+    margin-bottom: 16px;
     padding: 16px;
     border-radius: 16px;
     font-size: 0.95rem;
     font-weight: 600;
     width: 100%;
     text-align: left;
+}
+
+/* ── AQI metric button ────────────────────────────────── */
+.aqi-metric-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-family: inherit;
+    font-size: clamp(0.8rem, 2.8vw, 1rem);
+    font-weight: 600;
+    color: var(--aqi-color, currentColor);
+    white-space: nowrap;
+    text-align: center;
+    justify-content: center;
+}
+
+.aqi-info-icon {
+    width: 11px;
+    height: 11px;
+    flex-shrink: 0;
+    stroke-width: 2.5;
+    opacity: 0.65;
+}
+
+/* ── Secondary metric value (e.g. dew in gevoel/dauw) ─── */
+.metric-sub {
+    font-size: clamp(0.7rem, 2.2vw, 0.85rem);
+    font-weight: 500;
+    white-space: nowrap;
+    opacity: 0.75;
 }
 
 /* ── Forecast mini ────────────────────────────────────── */
@@ -507,10 +541,7 @@ header {
 
 .chart-container-secondary {
     margin-top: 16px;
-}
-
-.chart-container-secondary {
-    height: 140px;
+    height: 220px;
 }
 
 .dewpoint-status {

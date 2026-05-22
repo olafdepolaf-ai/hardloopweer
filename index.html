@@ -73,15 +73,15 @@
                                 <div class="location-row">
                                     <h2 id="city-name">Amsterdam</h2>
                                     <span id="current-time"></span>
-                                    <button id="aqi-btn" class="aqi-dot hidden" aria-label="Luchtkwaliteit"></button>
                                 </div>
                                 <p id="weather-description">Laden...</p>
                                 <div id="aqi-panel" class="aqi-panel hidden"></div>
                             </div>
                             <div class="weather-metrics">
                                 <div class="metric-item">
-                                    <span class="label" data-i18n="label_feels">Gevoel</span>
+                                    <span class="label" data-i18n="label_feels_dew">Gevoel / Dauw</span>
                                     <span id="feels-like" class="value">--°</span>
+                                    <span id="dew-point" class="value metric-sub">--°</span>
                                 </div>
                                 <div class="metric-item">
                                     <span class="label" data-i18n="label_wind">Wind</span>
@@ -91,12 +91,15 @@
                                     </div>
                                 </div>
                                 <div class="metric-item">
-                                    <span class="label" data-i18n="label_dew">Dauw</span>
-                                    <span id="dew-point" class="value">--°</span>
-                                </div>
-                                <div class="metric-item">
                                     <span class="label">UV</span>
                                     <span id="hero-uv" class="value">--</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="label" data-i18n="label_air">Lucht</span>
+                                    <button id="aqi-btn" class="aqi-metric-btn hidden" aria-label="Luchtkwaliteit">
+                                        <span id="aqi-level-text">--</span>
+                                        <i data-lucide="info" class="aqi-info-icon"></i>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -107,13 +110,17 @@
                 </section>
             </div>
 
+            <section id="rain-preview" class="card hidden">
+                <div class="chart-container chart-container-rain">
+                    <div id="rain-chart"></div>
+                </div>
+            </section>
+
             <section id="running-recommendation" class="card">
+                <div id="weather-warnings" class="warnings hidden"></div>
                 <h3 data-i18n="clothing_title">Wat trekken we aan?</h3>
                 <div id="clothing-tip" class="tip-content">
                     <p id="loading-text" data-i18n="loading">Weer ophalen voor advies...</p>
-                </div>
-                <div id="weather-warnings" class="warnings hidden">
-                    <!-- Waarschuwingen hier -->
                 </div>
             </section>
 
@@ -136,9 +143,6 @@
             <section id="forecast-mini" class="card">
                 <div class="chart-container">
                     <div id="temp-chart"></div>
-                </div>
-                <div class="chart-container chart-container-rain">
-                    <div id="rain-chart"></div>
                 </div>
                 <div class="chart-container chart-container-secondary">
                     <div id="dewpoint-chart"></div>
@@ -170,6 +174,7 @@
                     <option value="de">🇩🇪 Deutsch</option>
                     <option value="fr">🇫🇷 Français</option>
                     <option value="es">🇪🇸 Español</option>
+                    <option value="sv">🇸🇪 Svenska</option>
                 </select>
             </div>
             <div class="footer-links">

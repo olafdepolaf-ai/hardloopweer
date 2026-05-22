@@ -812,7 +812,8 @@ function generateRecommendation(current, dewPoint, uvIndex = 0, forecastDewpoint
     const clothingItems = buildClothingItems(temp, bft, uvIndex);
     const clothingHTML = `<ul class="clothing-list">${clothingItems.map(i => `<li>${i}</li>`).join('')}</ul>`;
 
-    let badge, type, tip;
+    let badge, type;
+    let warningsHTML = '';
 
     if (maxScore >= 3) {
         badge = t('rec_red');
@@ -820,36 +821,33 @@ function generateRecommendation(current, dewPoint, uvIndex = 0, forecastDewpoint
         const hasCold = redIssues.some(i => i.msg.includes('🥶'));
         const hasWind = redIssues.some(i => i.msg.includes('💨'));
         const suggestion = hasCold ? t('suggest_cold') : hasWind ? t('suggest_wind') : t('suggest_heat');
-        tip = `<strong>${t('rec_not_now')}</strong><br>${redIssues.map(i => i.msg).join('<br>')}<br><em>${suggestion}</em><br><br>${clothingHTML}`;
+        const allIssues = [...redIssues, ...secondaryIssues];
+        warningsHTML = `<strong>${t('rec_not_now')}</strong><br>${allIssues.map(i => i.msg).join('<br>')}<br><em>${suggestion}</em>`;
     } else if (maxScore === 2) {
         badge = t('rec_orange');
         type = 'caution';
-        tip = `<strong>${t('rec_be_careful')}</strong><br>${issues.filter(i => i.score >= 2).map(i => i.msg).join('<br>')}<br><br>${clothingHTML}`;
+        warningsHTML = `<strong>${t('rec_be_careful')}</strong><br>${issues.filter(i => i.score >= 2).map(i => i.msg).join('<br>')}`;
     } else if (maxScore === 1) {
         badge = t('rec_yellow');
         type = 'warning';
-        tip = `<strong>${t('rec_not_perfect')}</strong><br>${issues.map(i => i.msg).join('<br>')}<br><br>${clothingHTML}`;
+        warningsHTML = `<strong>${t('rec_not_perfect')}</strong><br>${issues.map(i => i.msg).join('<br>')}`;
     } else {
         if (temp < 0)        badge = t('rec_green_freezing');
         else if (temp <= 7)  badge = t('rec_green_cold');
         else if (temp <= 22) badge = t('rec_green_mild');
         else                 badge = t('rec_green_warm');
         type = 'success';
-        tip = clothingHTML;
     }
 
     if (els.recommendationBadge) {
         els.recommendationBadge.innerText = badge;
         els.recommendationBadge.className = `badge ${type}`;
     }
-    if (els.clothingTip) els.clothingTip.innerHTML = tip;
+    if (els.clothingTip) els.clothingTip.innerHTML = clothingHTML;
 
     if (els.warnings) {
-        const showWarnings = maxScore >= 3 && secondaryIssues.length > 0
-            ? secondaryIssues.map(i => i.msg)
-            : [];
-        if (showWarnings.length > 0) {
-            els.warnings.innerHTML = `<strong>${t('rec_also')}</strong> ` + showWarnings.join(' · ');
+        if (warningsHTML) {
+            els.warnings.innerHTML = warningsHTML;
             els.warnings.classList.remove('hidden');
         } else {
             els.warnings.classList.add('hidden');
@@ -925,6 +923,7 @@ function renderRainChartBuienradar(parsed) {
     state.rainChart.destroy();
     const rainEl = document.getElementById('rain-chart');
     if (!rainEl) return;
+    document.getElementById('rain-preview')?.classList.remove('hidden');
 
     // Scale y to data, minimum ceiling of 2 mm/u so empty charts look right
     const dataMax = Math.max(...data);
@@ -1155,6 +1154,12 @@ function renderChart(hourly, minutely15) {
     if (state.rainChart) { state.rainChart.destroy(); state.rainChart = null; }
     const rainEl = document.getElementById('rain-chart');
     if (rainEl) {
+        const hasRain = rain.some(v => v > 0);
+        const rainPreview = document.getElementById('rain-preview');
+        if (rainPreview) {
+            if (hasRain) rainPreview.classList.remove('hidden');
+            else rainPreview.classList.add('hidden');
+        }
         state.rainChart = new ApexCharts(rainEl, {
             chart: { ...apexBase, type: 'bar', height: '100%' },
             theme: apexTheme,
@@ -1403,8 +1408,10 @@ async function fetchAQI() {
         if (aqi === undefined || aqi === null) return;
 
         const level = getAQILevel(aqi);
+        const levelTextEl = document.getElementById('aqi-level-text');
+        if (levelTextEl) levelTextEl.textContent = level.label;
         btn.style.setProperty('--aqi-color', level.color);
-        btn.className = `aqi-dot ${level.cls}`;
+        btn.className = `aqi-metric-btn ${level.cls}`;
         btn.setAttribute('aria-label', `${t('aqi_label')}: ${level.label}`);
         btn.title = `${t('aqi_label')}: ${level.label} (${aqi})`;
 
