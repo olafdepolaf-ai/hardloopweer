@@ -1032,10 +1032,9 @@ async function fetchWeatherReport() {
         const longterm = forecast.longterm;
         if (!wr) return;
 
-        // Update hero subtitle with meteorologist title
-        if (els.comfortContainer && wr.title) {
-            els.comfortLevel.textContent = wr.title;
-            els.comfortContainer.classList.remove('hidden');
+        // Update hero weather description with API headline (NL only)
+        if (els.weatherDesc && wr.title) {
+            els.weatherDesc.innerText = wr.title;
         }
 
         const decodeHtml = s => s
