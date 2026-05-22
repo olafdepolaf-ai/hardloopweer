@@ -262,6 +262,26 @@ header {
     gap: 4px;
 }
 
+.hero-temp-row {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+    justify-content: center;
+}
+
+.hero-temp-sep {
+    font-size: clamp(1.2rem, 4vw, 1.8rem);
+    font-weight: 300;
+    opacity: 0.35;
+    line-height: 1;
+}
+
+.hero-feels-temp {
+    font-size: clamp(1.2rem, 4vw, 1.8rem);
+    font-weight: 500;
+    line-height: 1;
+}
+
 .weather-icon-main {
     width: clamp(56px, 18vw, 80px);
     height: clamp(56px, 18vw, 80px);
@@ -442,29 +462,67 @@ header {
 
 .warnings {
     margin-bottom: 16px;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
+    line-height: 1.65;
+    width: 100%;
+    text-align: left;
+    padding: 10px 14px;
+    border-radius: var(--radius-md, 12px);
+    border: 1px solid var(--border-soft, rgba(0,0,0,0.1));
+}
+
+/* ── Weather report card ──────────────────────────────── */
+#weather-report-card {
+    align-items: flex-start;
+    text-align: left;
+}
+
+.weather-report-summary {
+    font-size: 1rem;
     line-height: 1.6;
+    margin-bottom: 8px;
     width: 100%;
     text-align: left;
 }
 
-/* ── Weather report card ──────────────────────────────── */
-.weather-report-summary {
-    font-size: 1rem;
-    line-height: 1.6;
-    margin-bottom: 12px;
+.weather-report-time {
+    font-size: 0.8rem;
+    font-style: italic;
+    opacity: 0.5;
+    margin-left: 4px;
+    white-space: nowrap;
+}
+
+.weather-report-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 2px 0 12px;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    display: block;
+}
+
+.weather-report-details {
+    width: 100%;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.35s ease;
+}
+
+.weather-report-details.expanded {
+    max-height: 3000px;
 }
 
 .weather-report-body {
     font-size: 0.9rem;
-    line-height: 1.65;
-    margin-bottom: 12px;
-}
-
-.weather-report-meta {
-    font-size: 0.8rem;
-    opacity: 0.55;
+    line-height: 1.7;
     margin-bottom: 16px;
+    white-space: pre-wrap;
+    width: 100%;
+    text-align: left;
 }
 
 .weather-report-outlook-header {
@@ -474,15 +532,17 @@ header {
     letter-spacing: 0.04em;
     opacity: 0.5;
     margin-bottom: 8px;
+    width: 100%;
+    text-align: left;
 }
 
 .weather-report-outlook-item {
     font-size: 0.9rem;
     line-height: 1.55;
-    padding-left: 12px;
-    border-left: 2px solid currentColor;
     opacity: 0.8;
     margin-bottom: 8px;
+    width: 100%;
+    text-align: left;
 }
 
 /* ── AQI metric button ────────────────────────────────── */
@@ -673,21 +733,120 @@ header {
     border-radius: var(--radius-md, 12px);
     overflow: hidden;
     position: relative;
-    height: 380px;
-}
-
-@media (min-width: 480px) {
-    .buienradar-container { height: 500px; }
+    /* height set dynamically by scaleBuienradar() */
+    min-height: 200px;
 }
 
 #buienradar-frame {
     position: absolute;
     top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 600px;
-    height: 100%;
+    left: 0;
     border: none;
+    display: block;
+    /* width/height/transform set by scaleBuienradar() */
+}
+
+/* ── AQI overlay ──────────────────────────────────────── */
+.aqi-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 500;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+}
+
+.aqi-overlay-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+}
+
+.aqi-overlay-panel {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+    border-radius: var(--radius-lg, 22px) var(--radius-lg, 22px) 0 0;
+    padding: 24px 24px 40px;
+    animation: aqiSlideUp 0.28s ease;
+    z-index: 1;
+}
+
+@keyframes aqiSlideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+
+.aqi-overlay-close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    border: none;
+    cursor: pointer;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.aqi-overlay-close i[data-lucide] {
+    width: 18px;
+    height: 18px;
+}
+
+.aqi-overlay-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+    padding-right: 40px;
+}
+
+.aqi-overlay-title {
+    font-size: 1rem;
+    font-weight: 600;
+    flex: 1;
+}
+
+.aqi-overlay-level {
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+
+/* ── AQI expand button in metric ──────────────────────── */
+.aqi-metric-wrapper {
+    position: relative;
+}
+
+.aqi-expand-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    opacity: 0.45;
+    transition: opacity 0.15s;
+    color: inherit;
+}
+
+.aqi-expand-btn:hover { opacity: 0.9; }
+
+.aqi-expand-btn i[data-lucide] {
+    width: 13px;
+    height: 13px;
+    stroke-width: 2;
 }
 
 .buienradar-credit {

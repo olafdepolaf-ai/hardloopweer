@@ -250,11 +250,23 @@
 }
 
 [data-theme="beter"] #current-temp {
-    font-size: clamp(3rem, 18cqi, 5.8rem);
+    font-size: clamp(2.4rem, 14cqi, 4.4rem);
     font-weight: 800;
     line-height: 0.9;
     letter-spacing: -0.03em;
     color: var(--text-primary);
+}
+
+[data-theme="beter"] .hero-temp-sep {
+    font-size: clamp(1.4rem, 8cqi, 2.4rem);
+    font-weight: 300;
+    color: var(--text-secondary);
+}
+
+[data-theme="beter"] .hero-feels-temp {
+    font-size: clamp(1.4rem, 8cqi, 2.4rem);
+    font-weight: 600;
+    color: var(--text-secondary);
 }
 
 [data-theme="beter"] .location-info h2    { color: var(--text-primary); }
@@ -348,9 +360,9 @@
 
 /* ── Warnings ─────────────────────────────────────────── */
 [data-theme="beter"] .warnings {
-    background: color-mix(in srgb, var(--danger-color) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--danger-color) 25%, transparent);
-    color: var(--danger-color);
+    background: var(--surface-muted);
+    border: 1px solid var(--border-soft);
+    color: var(--text-primary);
     border-radius: var(--radius-md);
 }
 
@@ -394,7 +406,7 @@
 [data-theme="beter"] .dot.humidity { background-color: var(--humidity); }
 [data-theme="beter"] .dot.dewpoint { background-color: var(--dewpoint); }
 
-/* ── AQI panel ────────────────────────────────────────── */
+/* ── AQI panel & overlay ──────────────────────────────── */
 [data-theme="beter"] .aqi-dot:hover {
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--aqi-color, var(--accent)) 25%, transparent);
 }
@@ -402,6 +414,39 @@
     background: var(--surface-muted);
     border: 1px solid var(--border-soft);
 }
+[data-theme="beter"] .aqi-overlay-panel {
+    background: var(--surface-strong);
+    border: 1px solid var(--border-soft);
+    box-shadow: var(--shadow-soft);
+}
+[data-theme="beter"] .aqi-overlay-close {
+    background: var(--surface-muted);
+    border: 1px solid var(--border-soft);
+    color: var(--text-secondary);
+}
+[data-theme="beter"] .aqi-overlay-close:hover {
+    background: var(--surface-strong);
+    color: var(--text-primary);
+}
+[data-theme="beter"] .aqi-overlay-title { color: var(--text-primary); }
+[data-theme="beter"] .aqi-overlay-level {
+    border: 1px solid currentColor;
+    background: color-mix(in srgb, currentColor 12%, transparent);
+}
+[data-theme="beter"] .aqi-overlay-level.aqi-good      { color: #168a4a; }
+[data-theme="beter"] .aqi-overlay-level.aqi-fair      { color: #92b000; }
+[data-theme="beter"] .aqi-overlay-level.aqi-moderate  { color: #d89200; }
+[data-theme="beter"] .aqi-overlay-level.aqi-poor      { color: #e05a00; }
+[data-theme="beter"] .aqi-overlay-level.aqi-very-poor { color: #c8221c; }
+[data-theme="beter"] .aqi-overlay-level.aqi-extreme   { color: #7b1fa2; }
+
+/* ── Weather report ───────────────────────────────────── */
+[data-theme="beter"] .weather-report-summary { color: var(--text-primary); }
+[data-theme="beter"] .weather-report-time    { color: var(--text-secondary); }
+[data-theme="beter"] .weather-report-toggle  { color: var(--accent); }
+[data-theme="beter"] .weather-report-body    { color: var(--text-primary); }
+[data-theme="beter"] .weather-report-outlook-header { color: var(--text-secondary); }
+[data-theme="beter"] .weather-report-outlook-item   { color: var(--text-primary); }
 
 /* ── Buienradar ───────────────────────────────────────── */
 [data-theme="beter"] #buienradar-section .buienradar-container {

@@ -66,7 +66,11 @@
                     <div class="hero-content">
                         <div class="hero-left">
                             <img id="weather-icon" src="https://cdn.jsdelivr.net/npm/@meteocons/svg@0.1.0/fill/overcast.svg" alt="" class="weather-icon-main" width="80" height="80" onerror="this.src='https://cdn.jsdelivr.net/npm/@meteocons/svg@0.1.0/fill/overcast.svg'">
-                            <span id="current-temp">--°</span>
+                            <div class="hero-temp-row">
+                                <span id="current-temp">--°</span>
+                                <span class="hero-temp-sep">/</span>
+                                <span id="feels-like" class="hero-feels-temp">--°</span>
+                            </div>
                         </div>
                         <div class="hero-right">
                             <div class="location-info">
@@ -75,13 +79,11 @@
                                     <span id="current-time"></span>
                                 </div>
                                 <p id="weather-description">Laden...</p>
-                                <div id="aqi-panel" class="aqi-panel hidden"></div>
                             </div>
                             <div class="weather-metrics">
                                 <div class="metric-item">
-                                    <span class="label" data-i18n="label_feels_dew">Gevoel / Dauw</span>
-                                    <span id="feels-like" class="value">--°</span>
-                                    <span id="dew-point" class="value metric-sub">--°</span>
+                                    <span class="label" data-i18n="label_dew">Dauw</span>
+                                    <span id="dew-point" class="value">--°</span>
                                 </div>
                                 <div class="metric-item">
                                     <span class="label" data-i18n="label_wind">Wind</span>
@@ -94,7 +96,10 @@
                                     <span class="label">UV</span>
                                     <span id="hero-uv" class="value">--</span>
                                 </div>
-                                <div class="metric-item">
+                                <div class="metric-item aqi-metric-wrapper">
+                                    <button id="aqi-expand-btn" class="aqi-expand-btn hidden" title="Details luchtkwaliteit">
+                                        <i data-lucide="maximize-2"></i>
+                                    </button>
                                     <span class="label" data-i18n="label_air">Lucht</span>
                                     <button id="aqi-btn" class="aqi-metric-btn hidden" aria-label="Luchtkwaliteit">
                                         <span class="aqi-dot-indicator"></span>
@@ -118,11 +123,13 @@
 
             <section id="weather-report-card" class="card hidden">
                 <p id="weather-report-summary" class="weather-report-summary"></p>
-                <p id="weather-report-text" class="weather-report-body"></p>
-                <p id="weather-report-meta" class="weather-report-meta"></p>
-                <h4 class="weather-report-outlook-header">Vooruitzicht komende dagen</h4>
-                <p id="weather-shortterm" class="weather-report-outlook-item"></p>
-                <p id="weather-longterm" class="weather-report-outlook-item"></p>
+                <button id="weather-report-toggle" class="weather-report-toggle">Lees meer</button>
+                <div id="weather-report-details" class="weather-report-details">
+                    <p id="weather-report-text" class="weather-report-body"></p>
+                    <h4 class="weather-report-outlook-header">Vooruitzicht komende dagen</h4>
+                    <p id="weather-shortterm" class="weather-report-outlook-item"></p>
+                    <p id="weather-longterm" class="weather-report-outlook-item"></p>
+                </div>
             </section>
 
             <section id="running-recommendation" class="card">
@@ -216,6 +223,15 @@
         <div id="debug-panel" class="debug-panel"></div>
     </div>
     <div id="bg-overlay"></div>
+    <div id="aqi-overlay" class="aqi-overlay hidden" role="dialog" aria-modal="true" aria-label="Luchtkwaliteit details">
+        <div id="aqi-overlay-backdrop" class="aqi-overlay-backdrop"></div>
+        <div class="aqi-overlay-panel">
+            <button id="aqi-overlay-close" class="aqi-overlay-close" aria-label="Sluiten">
+                <i data-lucide="x"></i>
+            </button>
+            <div id="aqi-overlay-body" class="aqi-overlay-body"></div>
+        </div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
     <script src="https://unpkg.com/lucide@0.511.0/dist/umd/lucide.js"></script>

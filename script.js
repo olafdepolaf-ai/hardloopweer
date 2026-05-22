@@ -88,7 +88,9 @@ const els = {
     buienradarFrame: document.getElementById('buienradar-frame'),
     searchContainer: document.getElementById('search-container'),
     searchToggle: document.getElementById('search-toggle'),
-    searchSuggestions: document.getElementById('search-suggestions')
+    searchSuggestions: document.getElementById('search-suggestions'),
+    aqiOverlay: document.getElementById('aqi-overlay'),
+    aqiOverlayBody: document.getElementById('aqi-overlay-body')
 };
 
 let state = {
@@ -391,6 +393,20 @@ async function init() {
     updateTime();
     setInterval(updateTime, 10000);
     updateBuienradar();
+    window.addEventListener('resize', scaleBuienradar);
+
+    // Weather report toggle (lees meer / lees minder)
+    document.getElementById('weather-report-toggle')?.addEventListener('click', () => {
+        const details = document.getElementById('weather-report-details');
+        const btn = document.getElementById('weather-report-toggle');
+        if (!details || !btn) return;
+        const isExpanded = details.classList.toggle('expanded');
+        btn.textContent = isExpanded ? 'Lees minder' : 'Lees meer';
+    });
+
+    // AQI overlay
+    document.getElementById('aqi-overlay-close')?.addEventListener('click', closeAQIOverlay);
+    document.getElementById('aqi-overlay-backdrop')?.addEventListener('click', closeAQIOverlay);
 
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
         if (state._lastHourly) {
@@ -508,6 +524,23 @@ function updateTime() {
 function updateBuienradar() {
     if (!els.buienradarFrame) return;
     els.buienradarFrame.src = `https://gadgets.buienradar.nl/gadget/zoommap/?lat=${state.lat}&lng=${state.lon}&overname=2&zoom=10&pins=0&naam=${encodeURIComponent(state.city)}`;
+    scaleBuienradar();
+}
+
+function scaleBuienradar() {
+    const container = document.querySelector('.buienradar-container');
+    const frame = document.getElementById('buienradar-frame');
+    if (!container || !frame) return;
+    const containerW = container.clientWidth;
+    if (!containerW) return;
+    const NATIVE_W = 600;
+    const NATIVE_H = 500;
+    const scale = containerW / NATIVE_W;
+    frame.style.width = NATIVE_W + 'px';
+    frame.style.height = NATIVE_H + 'px';
+    frame.style.transform = `scale(${scale})`;
+    frame.style.transformOrigin = 'top left';
+    container.style.height = Math.round(NATIVE_H * scale) + 'px';
 }
 
 async function searchCity(query) {
@@ -612,7 +645,10 @@ function updateUI(data) {
 
     // Show Buienradar + weather report only when viewing a Dutch location
     const buienradarSection = document.getElementById('buienradar-section');
-    if (buienradarSection) buienradarSection.classList.toggle('hidden', !isInNetherlands());
+    if (buienradarSection) {
+        buienradarSection.classList.toggle('hidden', !isInNetherlands());
+        if (isInNetherlands()) requestAnimationFrame(scaleBuienradar);
+    }
     const weatherReportCard = document.getElementById('weather-report-card');
     if (weatherReportCard && !isInNetherlands()) weatherReportCard.classList.add('hidden');
 
@@ -762,6 +798,10 @@ function buildClothingItems(temp, bft, uvIndex) {
     if (temp < 10 && bft >= 5) items.push(t('clothing_add_windjack'));
     if (uvIndex > 3) items.push(t('clothing_add_sunscreen'));
     if (uvIndex > 4) items.push(t('clothing_add_cap'));
+    if (temp > 2) {
+        const dow = new Date().getDay(); // 0=Sunday, 6=Saturday
+        items.push(dow === 0 || dow === 6 ? t('clothing_add_long_run') : t('clothing_add_waterfles'));
+    }
     items.push(t('clothing_add_id'));
     return items;
 }
@@ -823,19 +863,16 @@ function generateRecommendation(current, dewPoint, uvIndex = 0, forecastDewpoint
     if (maxScore >= 3) {
         badge = t('rec_red');
         type = 'danger';
-        const hasCold = redIssues.some(i => i.msg.includes('🥶'));
-        const hasWind = redIssues.some(i => i.msg.includes('💨'));
-        const suggestion = hasCold ? t('suggest_cold') : hasWind ? t('suggest_wind') : t('suggest_heat');
         const allIssues = [...redIssues, ...secondaryIssues];
-        warningsHTML = `<strong>${t('rec_not_now')}</strong><br>${allIssues.map(i => i.msg).join('<br>')}<br><em>${suggestion}</em>`;
+        warningsHTML = allIssues.map(i => i.msg).join('<br>');
     } else if (maxScore === 2) {
         badge = t('rec_orange');
         type = 'caution';
-        warningsHTML = `<strong>${t('rec_be_careful')}</strong><br>${issues.filter(i => i.score >= 2).map(i => i.msg).join('<br>')}`;
+        warningsHTML = issues.filter(i => i.score >= 2).map(i => i.msg).join('<br>');
     } else if (maxScore === 1) {
         badge = t('rec_yellow');
         type = 'warning';
-        warningsHTML = `<strong>${t('rec_not_perfect')}</strong><br>${issues.map(i => i.msg).join('<br>')}`;
+        warningsHTML = issues.map(i => i.msg).join('<br>');
     } else {
         if (temp < 0)        badge = t('rec_green_freezing');
         else if (temp <= 7)  badge = t('rec_green_cold');
@@ -935,14 +972,24 @@ async function fetchWeatherReport() {
             .replace(/\s+/g, ' ')
             .trim();
 
-        // Format published date from ISO string (treat as Dutch local time)
-        const formatDate = iso => {
+        // Format published time relative to today
+        const formatPublishedTime = iso => {
+            if (!iso) return '';
             const [datePart, timePart] = iso.split('T');
             const [y, m, d] = datePart.split('-').map(Number);
+            const time = timePart ? timePart.substring(0, 5) : '';
+            const todayAtLoc = new Date(Date.now() + state.utcOffsetSeconds * 1000);
+            const todayY = todayAtLoc.getUTCFullYear();
+            const todayM = todayAtLoc.getUTCMonth() + 1;
+            const todayD = todayAtLoc.getUTCDate();
+            if (y === todayY && m === todayM && d === todayD) return time;
+            const pubDate = new Date(y, m - 1, d);
+            const todayDate = new Date(todayY, todayM - 1, todayD);
+            const diffDays = Math.round((todayDate - pubDate) / 86400000);
+            if (diffDays === 1) return `Gisteren ${time}`;
+            if (diffDays === 2) return `Eergisteren ${time}`;
             const months = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
-            const days = ['zo','ma','di','wo','do','vr','za'];
-            const dow = days[new Date(y, m - 1, d).getDay()];
-            return `${dow} ${d} ${months[m - 1]} ${y}, ${timePart.substring(0, 5)}`;
+            return `${d} ${months[m - 1]}`;
         };
 
         const formatDateRange = (start, end) => {
@@ -953,13 +1000,20 @@ async function fetchWeatherReport() {
         };
 
         const summaryEl = document.getElementById('weather-report-summary');
-        if (summaryEl) summaryEl.textContent = decodeHtml(wr.summary || '');
+        if (summaryEl) {
+            const summaryText = decodeHtml(wr.summary || '');
+            const timeStr = formatPublishedTime(wr.published || '');
+            summaryEl.innerHTML = escHtml(summaryText)
+                + (timeStr ? ` <span class="weather-report-time">${escHtml(timeStr)}</span>` : '');
+        }
 
         const textEl = document.getElementById('weather-report-text');
-        if (textEl) textEl.textContent = decodeHtml(wr.text || '');
-
-        const metaEl = document.getElementById('weather-report-meta');
-        if (metaEl) metaEl.textContent = `${formatDate(wr.published)} · ${wr.author}`;
+        if (textEl) {
+            const bodyText = decodeHtml(wr.text || '');
+            // Add blank line before sentences starting with "Morgen"
+            const processed = bodyText.replace(/([.!?])\s+(Morgen|morgen)/g, '$1\n\n$2');
+            textEl.textContent = processed;
+        }
 
         const shorttermEl = document.getElementById('weather-shortterm');
         if (shorttermEl && shortterm?.forecast) {
@@ -1482,9 +1536,20 @@ function getAQILevel(aqi) {
     return               { label: t('aqi_extremely_poor'), color: '#7b1fa2', cls: 'aqi-extreme',   tipKey: 'extreme' };
 }
 
+function openAQIOverlay() {
+    els.aqiOverlay?.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    if (window.lucide) lucide.createIcons();
+}
+
+function closeAQIOverlay() {
+    els.aqiOverlay?.classList.add('hidden');
+    document.body.style.overflow = '';
+}
+
 async function fetchAQI() {
     const btn = document.getElementById('aqi-btn');
-    const panel = document.getElementById('aqi-panel');
+    const expandBtn = document.getElementById('aqi-expand-btn');
     if (!btn) return;
     try {
         const res = await fetch(
@@ -1501,18 +1566,22 @@ async function fetchAQI() {
         btn.style.setProperty('--aqi-color', level.color);
         btn.className = `aqi-metric-btn ${level.cls}`;
         btn.setAttribute('aria-label', `${t('aqi_label')}: ${level.label}`);
-        btn.title = `${t('aqi_label')}: ${level.label} (${aqi})`;
+        btn.classList.remove('hidden');
 
-        if (panel) {
-            const pm25 = c.pm2_5?.toFixed(1) ?? '–';
-            const pm10 = c.pm10?.toFixed(1) ?? '–';
-            const no2  = c.nitrogen_dioxide?.toFixed(1) ?? '–';
-            const o3   = c.ozone?.toFixed(1) ?? '–';
-            panel.innerHTML = `
-                <div class="aqi-panel-header">
+        if (expandBtn) expandBtn.classList.remove('hidden');
+
+        const pm25 = c.pm2_5?.toFixed(1) ?? '–';
+        const pm10 = c.pm10?.toFixed(1) ?? '–';
+        const no2  = c.nitrogen_dioxide?.toFixed(1) ?? '–';
+        const o3   = c.ozone?.toFixed(1) ?? '–';
+
+        if (els.aqiOverlayBody) {
+            els.aqiOverlayBody.innerHTML = `
+                <div class="aqi-overlay-header">
                     <span class="aqi-panel-dot" style="background:${level.color}"></span>
-                    <strong>${escHtml(t('aqi_label'))}: ${escHtml(level.label)}</strong>
+                    <span class="aqi-overlay-title">${escHtml(t('aqi_label'))}</span>
                     <span class="aqi-panel-index">${aqi}</span>
+                    <span class="aqi-overlay-level ${level.cls}">${escHtml(level.label)}</span>
                 </div>
                 <div class="aqi-panel-grid">
                     <div class="aqi-pollutant"><span class="aqi-pollutant-name">PM2.5</span><span class="aqi-pollutant-val">${pm25} µg/m³</span></div>
@@ -1522,10 +1591,10 @@ async function fetchAQI() {
                 </div>
                 <p class="aqi-panel-tip">${escHtml(t('aqi_tip_' + level.tipKey))}</p>
             `;
-            panel.classList.add('hidden');
         }
 
-        btn.onclick = () => panel?.classList.toggle('hidden');
+        btn.onclick = openAQIOverlay;
+        if (expandBtn) expandBtn.onclick = openAQIOverlay;
     } catch (e) {
         console.warn('AQI niet beschikbaar:', e);
     }

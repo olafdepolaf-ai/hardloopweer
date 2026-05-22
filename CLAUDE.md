@@ -48,6 +48,7 @@ hardloopweer/
 - [ ] UV-index ophalen en tonen
 - [ ] Weercode-tabel uitbreiden (nu mist codes 48, 53, 55, 56, 57, 63, 65, 66, 67, 73, 75, 77, 80–82, 85, 86, 96, 99)
 - [ ] "Webcam"-sectie hernoemen — toont nu Unsplash-stockfoto's, geen echte webcams
+- [ ] Widget drag-to-reorder: widgets kunnen van plek wisselen zodat kortere widgets automatisch omhoog schuiven in de tweede kolom
 
 ## Comfortlevel-formule
 
