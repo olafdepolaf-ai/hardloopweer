@@ -404,13 +404,22 @@ async function init() {
     window.addEventListener('resize', scaleBuienradar);
 
     // Weather report toggle (lees meer / lees minder)
-    document.getElementById('weather-report-toggle')?.addEventListener('click', () => {
+    const openReportDetails = () => {
         const details = document.getElementById('weather-report-details');
-        const btn = document.getElementById('weather-report-toggle');
-        if (!details || !btn) return;
-        const isExpanded = details.classList.toggle('expanded');
-        btn.textContent = isExpanded ? 'Lees minder' : 'Lees meer';
-    });
+        const openBtn = document.getElementById('weather-report-toggle-open');
+        if (!details) return;
+        details.classList.add('expanded');
+        if (openBtn) openBtn.classList.add('hidden');
+    };
+    const closeReportDetails = () => {
+        const details = document.getElementById('weather-report-details');
+        const openBtn = document.getElementById('weather-report-toggle-open');
+        if (!details) return;
+        details.classList.remove('expanded');
+        if (openBtn) openBtn.classList.remove('hidden');
+    };
+    document.getElementById('weather-report-toggle-open')?.addEventListener('click', openReportDetails);
+    document.getElementById('weather-report-toggle')?.addEventListener('click', closeReportDetails);
 
     // Metric expand panels (accordion)
     document.addEventListener('click', (e) => {
