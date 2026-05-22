@@ -611,22 +611,26 @@ function renderWindPanel() {
     const gustBft = gustKmh ? getBeaufort(gustKmh) : null;
 
     el.innerHTML = `
-        <div class="wind-panel-stats">
-            <div class="wind-panel-gauge-col">
+        <div class="wind-panel-top">
+            <div class="wind-gauge-col">
                 ${buildBftGauge(bft)}
-                <div class="wind-panel-bft-label"><strong>${bft}</strong> Beaufort</div>
+                <div class="wind-bft-label"><strong>${bft}</strong> Bft</div>
             </div>
-            <div class="wind-panel-info-col">
-                <div class="wind-info-row"><span class="wind-info-label">Snelheid</span><span class="wind-info-val">${kmh} km/u</span></div>
-                ${gustKmh ? `<div class="wind-info-row"><span class="wind-info-label">Windstoten</span><span class="wind-info-val">${gustKmh} km/u · ${gustBft} Bft</span></div>` : ''}
-                <div class="wind-info-row"><span class="wind-info-label">Richting</span><span class="wind-info-val">${dir}</span></div>
+            <div class="wind-stats-col">
+                <div class="wind-big-stat">
+                    <span class="wind-big-val">${kmh}</span>
+                    <span class="wind-big-unit">km/u</span>
+                </div>
+                ${gustKmh ? `<div class="wind-gust-row"><span class="wind-gust-label">Windstoten</span><span class="wind-gust-val">${gustKmh} km/u · ${gustBft} Bft</span></div>` : ''}
             </div>
-            <div class="wind-panel-compass-col">
-                <i data-lucide="navigation" class="wind-compass-icon" style="transform:rotate(${deg}deg)"></i>
-                <span class="wind-compass-label">${dir}</span>
+            <div class="wind-compass-col">
+                <i data-lucide="navigation" class="wind-nav-icon" style="transform:rotate(${deg}deg)"></i>
+                <span class="wind-dir-text">${dir}</span>
             </div>
         </div>
-        <div id="wind-speed-chart" class="wind-speed-chart-container"></div>
+        <div class="wind-chart-wrap">
+            <div id="wind-speed-chart"></div>
+        </div>
     `;
     if (window.lucide) lucide.createIcons();
     if (hourly?.wind_speed_10m) renderWindSpeedChart(hourly);
@@ -657,7 +661,7 @@ function renderWindSpeedChart(hourly) {
 
     state.windChart = new ApexCharts(el, {
         series,
-        chart: { type: 'area', height: 160, background: 'transparent', toolbar: { show: false }, animations: { enabled: false }, fontFamily: 'inherit' },
+        chart: { type: 'area', height: 220, background: 'transparent', toolbar: { show: false }, animations: { enabled: false }, fontFamily: 'inherit' },
         theme: { mode: dark ? 'dark' : 'light' },
         dataLabels: { enabled: false },
         stroke: { curve: 'smooth', width: [2, 1.5], dashArray: [0, 5] },
@@ -1724,20 +1728,32 @@ async function fetchAQI() {
         const no2  = c.nitrogen_dioxide?.toFixed(1) ?? '–';
         const o3   = c.ozone?.toFixed(1) ?? '–';
 
+        const markerPct = Math.min(Math.max((aqi / 150) * 100, 2), 98);
         const aqiHtml = `
-            <div class="aqi-overlay-header">
-                <span class="aqi-panel-dot" style="background:${level.color}"></span>
-                <span class="aqi-overlay-title">${escHtml(t('aqi_label'))}</span>
-                <span class="aqi-panel-index">${aqi}</span>
-                <span class="aqi-overlay-level ${level.cls}">${escHtml(level.label)}</span>
+            <div class="aqi-full-panel">
+                <div class="aqi-top-row">
+                    <div class="aqi-number-group">
+                        <span class="aqi-big-number" style="color:${level.color}">${aqi}</span>
+                        <span class="aqi-big-unit">AQI</span>
+                    </div>
+                    <span class="aqi-overlay-level ${level.cls}">${escHtml(level.label)}</span>
+                </div>
+                <div class="aqi-bar-section">
+                    <div class="aqi-bar-track">
+                        <div class="aqi-bar-marker" style="left:${markerPct}%"></div>
+                    </div>
+                    <div class="aqi-bar-scale">
+                        <span>0</span><span>40</span><span>60</span><span>80</span><span>100</span><span>150+</span>
+                    </div>
+                </div>
+                <div class="aqi-pollutants-grid">
+                    <div class="aqi-pollutant-card"><span class="aqi-pollutant-name">PM2.5</span><span class="aqi-pollutant-val">${pm25}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
+                    <div class="aqi-pollutant-card"><span class="aqi-pollutant-name">PM10</span><span class="aqi-pollutant-val">${pm10}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
+                    <div class="aqi-pollutant-card"><span class="aqi-pollutant-name">NO₂</span><span class="aqi-pollutant-val">${no2}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
+                    <div class="aqi-pollutant-card"><span class="aqi-pollutant-name">O₃</span><span class="aqi-pollutant-val">${o3}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
+                </div>
+                <p class="aqi-panel-tip">${escHtml(t('aqi_tip_' + level.tipKey))}</p>
             </div>
-            <div class="aqi-panel-grid">
-                <div class="aqi-pollutant"><span class="aqi-pollutant-name">PM2.5</span><span class="aqi-pollutant-val">${pm25} µg/m³</span></div>
-                <div class="aqi-pollutant"><span class="aqi-pollutant-name">PM10</span><span class="aqi-pollutant-val">${pm10} µg/m³</span></div>
-                <div class="aqi-pollutant"><span class="aqi-pollutant-name">NO₂</span><span class="aqi-pollutant-val">${no2} µg/m³</span></div>
-                <div class="aqi-pollutant"><span class="aqi-pollutant-name">O₃</span><span class="aqi-pollutant-val">${o3} µg/m³</span></div>
-            </div>
-            <p class="aqi-panel-tip">${escHtml(t('aqi_tip_' + level.tipKey))}</p>
         `;
         if (els.aqiOverlayBody) els.aqiOverlayBody.innerHTML = aqiHtml;
         if (els.aqiPanelBody) els.aqiPanelBody.innerHTML = aqiHtml;

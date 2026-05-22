@@ -1023,84 +1023,228 @@ header {
 }
 
 /* ── Wind panel ───────────────────────────────────────── */
-.wind-panel-stats {
-    display: flex;
-    align-items: flex-start;
-    gap: 24px;
-    flex-wrap: wrap;
+.wind-panel-top {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 16px 28px;
+    align-items: center;
     margin-bottom: 20px;
 }
 
-.wind-panel-gauge-col {
+.wind-gauge-col {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    min-width: 90px;
 }
 
 .bft-gauge-svg {
-    width: 90px;
+    width: 110px;
     height: auto;
 }
 
-.wind-panel-bft-label {
-    font-size: 0.82rem;
-    opacity: 0.6;
+.wind-bft-label {
+    font-size: 0.78rem;
+    opacity: 0.55;
     text-align: center;
 }
 
-.wind-panel-bft-label strong {
-    font-size: 1.1rem;
+.wind-bft-label strong {
+    font-size: 1.3rem;
+    font-weight: 700;
     opacity: 1;
 }
 
-.wind-panel-info-col {
+.wind-stats-col {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    flex: 1;
-    min-width: 130px;
+    gap: 10px;
 }
 
-.wind-info-row {
+.wind-big-stat {
     display: flex;
-    justify-content: space-between;
-    gap: 12px;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.wind-big-val {
+    font-size: 2.8rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.wind-big-unit {
+    font-size: 1rem;
+    opacity: 0.45;
+}
+
+.wind-gust-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
     font-size: 0.88rem;
+    flex-wrap: wrap;
 }
 
-.wind-info-label {
-    opacity: 0.55;
+.wind-gust-label {
+    opacity: 0.5;
 }
 
-.wind-info-val {
+.wind-gust-val {
     font-weight: 500;
 }
 
-.wind-panel-compass-col {
+.wind-compass-col {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    min-width: 56px;
+    gap: 6px;
 }
 
-.wind-compass-icon {
-    width: 36px;
-    height: 36px;
+.wind-nav-icon {
+    width: 44px;
+    height: 44px;
     stroke-width: 1.5;
-    opacity: 0.75;
+    opacity: 0.65;
 }
 
-.wind-compass-label {
-    font-size: 0.78rem;
+.wind-dir-text {
+    font-size: 0.85rem;
     font-weight: 600;
-    opacity: 0.7;
+    opacity: 0.65;
 }
 
-.wind-speed-chart-container {
+.wind-chart-wrap {
     width: 100%;
+}
+
+@media (max-width: 500px) {
+    .wind-panel-top {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto;
+    }
+
+    .wind-stats-col {
+        grid-column: 1 / -1;
+        flex-direction: row;
+        align-items: center;
+        gap: 24px;
+        padding-top: 12px;
+        border-top: 1px solid var(--border-soft, rgba(0,0,0,0.08));
+    }
+
+    .bft-gauge-svg {
+        width: 88px;
+    }
+}
+
+/* ── AQI full-width panel ─────────────────────────────── */
+.aqi-full-panel {
+    width: 100%;
+}
+
+.aqi-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+.aqi-number-group {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.aqi-big-number {
+    font-size: 2.8rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.aqi-big-unit {
+    font-size: 0.9rem;
+    opacity: 0.4;
+}
+
+.aqi-bar-section {
+    margin-bottom: 20px;
+}
+
+.aqi-bar-track {
+    height: 10px;
+    border-radius: 5px;
+    background: linear-gradient(to right,
+        #168a4a 0%,
+        #92b000 27%,
+        #d89200 40%,
+        #e05a00 54%,
+        #c8221c 67%,
+        #7b1fa2 100%);
+    position: relative;
+    margin-bottom: 5px;
+}
+
+.aqi-bar-marker {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--surface, #fff);
+    border: 2.5px solid var(--text-primary, #111);
+    box-shadow: 0 1px 5px rgba(0,0,0,0.25);
+    pointer-events: none;
+}
+
+.aqi-bar-scale {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7rem;
+    opacity: 0.4;
+    padding: 0 2px;
+}
+
+.aqi-pollutants-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.aqi-pollutant-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--surface-muted, rgba(0,0,0,0.04));
+}
+
+.aqi-pollutant-card .aqi-pollutant-name {
+    font-size: 0.72rem;
+    font-weight: 600;
+    opacity: 0.5;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.aqi-pollutant-card .aqi-pollutant-val {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.aqi-pollutant-card .aqi-pollutant-unit {
+    font-size: 0.7rem;
+    opacity: 0.45;
+}
+
+@media (max-width: 500px) {
+    .aqi-pollutants-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 
 /* ── Utilities ────────────────────────────────────────── */
