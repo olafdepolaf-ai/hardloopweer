@@ -538,8 +538,10 @@ function scaleBuienradar() {
     const scale = containerW / NATIVE_W;
     frame.style.width = NATIVE_W + 'px';
     frame.style.height = NATIVE_H + 'px';
+    frame.style.left = '50%';
+    frame.style.marginLeft = `-${NATIVE_W / 2}px`;
     frame.style.transform = `scale(${scale})`;
-    frame.style.transformOrigin = 'top left';
+    frame.style.transformOrigin = 'top center';
     container.style.height = Math.round(NATIVE_H * scale) + 'px';
 }
 
