@@ -64,15 +64,10 @@
             <div class="weather-hero-container">
                 <section id="weather-hero" class="card">
                     <div class="hero-content">
-                        <div class="hero-left" data-metric="temp">
-                            <button class="metric-expand-btn" data-metric="temp" aria-label="Temperatuurdetails">
-                                <i data-lucide="chevron-down"></i>
-                            </button>
+                        <div class="hero-left">
                             <img id="weather-icon" src="https://cdn.jsdelivr.net/npm/@meteocons/svg@0.1.0/fill/overcast.svg" alt="" class="weather-icon-main" width="80" height="80" onerror="this.src='https://cdn.jsdelivr.net/npm/@meteocons/svg@0.1.0/fill/overcast.svg'">
                             <div class="hero-temp-row">
                                 <span id="current-temp">--°</span>
-                                <span class="hero-temp-sep">/</span>
-                                <span id="feels-like" class="hero-feels-temp">--°</span>
                             </div>
                         </div>
                         <div class="hero-right">
@@ -84,11 +79,14 @@
                                 <p id="weather-description">Laden...</p>
                             </div>
                             <div class="weather-metrics">
-                                <div class="metric-item">
+                                <div class="metric-item expandable" data-metric="temp">
                                     <div class="metric-label-row">
-                                        <span class="label" data-i18n="label_dew">Dauw</span>
+                                        <span class="label" data-i18n="label_feels">Gevoel</span>
+                                        <button class="metric-expand-btn" data-metric="temp" aria-label="Temperatuurdetails">
+                                            <i data-lucide="chevron-down"></i>
+                                        </button>
                                     </div>
-                                    <span id="dew-point" class="value">--°</span>
+                                    <span id="feels-like" class="value">--°</span>
                                 </div>
                                 <div class="metric-item expandable" data-metric="wind">
                                     <div class="metric-label-row">

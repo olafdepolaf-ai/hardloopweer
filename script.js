@@ -563,11 +563,12 @@ function toggleMetricPanel(key) {
     document.querySelectorAll(`.metric-expand-btn[data-metric="${key}"]`).forEach(b => b.classList.add('active'));
     document.querySelectorAll(`.metric-item[data-metric="${key}"], .hero-left[data-metric="${key}"]`).forEach(el => el.classList.add('metric-active'));
 
+    // Wait for CSS transition (350ms) before re-rendering charts
     setTimeout(() => {
         if (key === 'temp' && state._lastHourly) renderChart(state._lastHourly, state._lastMinutely15);
         if (key === 'uv' && state._lastHourly) renderUVChart(state._lastHourly, state._lastDaily);
         if (key === 'wind' && state._lastCurrent) renderWindPanel(state._lastCurrent);
-    }, 50);
+    }, 360);
 }
 
 function renderWindPanel(data) {
@@ -1668,7 +1669,7 @@ async function fetchAQI() {
         if (els.aqiPanelBody) els.aqiPanelBody.innerHTML = aqiHtml;
 
         btn.onclick = () => toggleMetricPanel('aqi');
-        if (expandBtn) expandBtn.onclick = () => toggleMetricPanel('aqi');
+        // expandBtn uses the global .metric-expand-btn listener — don't double-wire
     } catch (e) {
         console.warn('AQI niet beschikbaar:', e);
     }
