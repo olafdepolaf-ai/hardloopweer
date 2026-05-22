@@ -572,6 +572,22 @@ header {
     flex-shrink: 0;
 }
 
+.metric-dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #9e9e9e;
+    flex-shrink: 0;
+}
+
+.metric-val-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
 /* ── Secondary metric value (e.g. dew in gevoel/dauw) ─── */
 .metric-sub {
     font-size: clamp(0.7rem, 2.2vw, 0.85rem);

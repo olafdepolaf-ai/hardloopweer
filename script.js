@@ -74,11 +74,13 @@ const els = {
     currentTime: document.getElementById('current-time'),
     currentTemp: document.getElementById('current-temp'),
     weatherDesc: document.getElementById('weather-description'),
-    feelsLike: document.getElementById('feels-like'),
     windForce: document.getElementById('wind-force'),
     windArrow: document.getElementById('wind-arrow'),
+    windDot: document.getElementById('wind-dot'),
     dewPoint: document.getElementById('dew-point'),
+    dewDot: document.getElementById('dew-dot'),
     heroUV: document.getElementById('hero-uv'),
+    uvDot: document.getElementById('uv-dot'),
     recommendationBadge: document.getElementById('recommendation-badge'),
     clothingTip: document.getElementById('clothing-tip'),
     warnings: document.getElementById('weather-warnings'),
@@ -764,6 +766,23 @@ async function fetchWeather() {
     }
 }
 
+function getWindDotColor(bft) {
+    if (bft <= 3) return '#57BB8A';
+    if (bft <= 5) return '#d89200';
+    if (bft <= 7) return '#e05a00';
+    if (bft <= 9) return '#c8221c';
+    return '#7b1fa2';
+}
+
+function getDewpointColor(dp) {
+    if (dp <= 10) return '#57BB8A';
+    if (dp <= 13) return '#92b000';
+    if (dp <= 16) return '#d89200';
+    if (dp <= 18) return '#e05a00';
+    if (dp <= 21) return '#c8221c';
+    return '#7b1fa2';
+}
+
 function getBeaufort(kmh) {
     if (kmh < 1) return 0;
     if (kmh <= 5) return 1;
@@ -788,10 +807,10 @@ function updateUI(data) {
     if (data.timezone) state.timezone = data.timezone;
 
     els.currentTemp.innerText = `${Math.round(current.temperature_2m)}°`;
-    if (els.feelsLike) els.feelsLike.innerText = `${Math.round(current.apparent_temperature)}°`;
 
     const bft = getBeaufort(current.wind_speed_10m);
     if (els.windForce) els.windForce.innerText = `${bft} Bft`;
+    if (els.windDot) els.windDot.style.background = getWindDotColor(bft);
     if (els.windArrow) {
         els.windArrow.style.transform = `rotate(${current.wind_direction_10m}deg)`;
     }
@@ -810,6 +829,7 @@ function updateUI(data) {
     const hourIdx = locationHour();
     const dp = data.hourly.dew_point_2m[hourIdx];
     if (els.dewPoint) els.dewPoint.innerText = `${Math.round(dp)}°`;
+    if (els.dewDot) els.dewDot.style.background = getDewpointColor(dp);
 
     if (els.weatherIcon) {
         els.weatherIcon.src = getMeteoconSrc(current.weather_code, current.is_day);
@@ -1839,6 +1859,7 @@ function _renderUVChart(hourly, daily) {
     const uvInfoCur = getUVLevel(currentUVValue);
     if (currentEl) currentEl.innerText = currentUVValue.toFixed(1);
     if (els.heroUV) els.heroUV.innerText = currentUVValue.toFixed(1);
+    if (els.uvDot) els.uvDot.style.background = uvInfoCur.color;
     if (maxEl) maxEl.innerText = maxUVom.toFixed(1);
     if (levelEl) { levelEl.innerText = uvInfoCur.label; levelEl.className = `uv-badge ${uvInfoCur.cls}${uvInfoCur.cls === 'uv-none' ? ' hidden' : ''}`; }
     if (tipEl) tipEl.innerText = uvInfoCur.tip;

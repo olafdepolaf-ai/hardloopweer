@@ -80,13 +80,16 @@
                             <div class="weather-metrics">
                                 <div class="metric-item expandable" data-metric="temp">
                                     <div class="metric-label-row">
-                                        <i data-lucide="thermometer" class="metric-icon"></i>
-                                        <span class="label" data-i18n="label_feels">Gevoel</span>
-                                        <button class="metric-expand-btn" data-metric="temp" aria-label="Temperatuurdetails">
+                                        <i data-lucide="droplets" class="metric-icon"></i>
+                                        <span class="label" data-i18n="label_dew">Dauw</span>
+                                        <button class="metric-expand-btn" data-metric="temp" aria-label="Dauwpuntdetails">
                                             <i data-lucide="chevron-down"></i>
                                         </button>
                                     </div>
-                                    <span id="feels-like" class="value">--°</span>
+                                    <div class="metric-val-row">
+                                        <span class="metric-dot" id="dew-dot"></span>
+                                        <span id="dew-point" class="value">--°</span>
+                                    </div>
                                 </div>
                                 <div class="metric-item expandable" data-metric="wind">
                                     <div class="metric-label-row">
@@ -97,6 +100,7 @@
                                         </button>
                                     </div>
                                     <div class="wind-display">
+                                        <span class="metric-dot" id="wind-dot"></span>
                                         <span id="wind-force" class="value">-- Bft</span>
                                         <i id="wind-arrow" data-lucide="arrow-up" class="wind-arrow"></i>
                                     </div>
@@ -109,7 +113,10 @@
                                             <i data-lucide="chevron-down"></i>
                                         </button>
                                     </div>
-                                    <span id="hero-uv" class="value">--</span>
+                                    <div class="metric-val-row">
+                                        <span class="metric-dot" id="uv-dot"></span>
+                                        <span id="hero-uv" class="value">--</span>
+                                    </div>
                                 </div>
                                 <div class="metric-item aqi-metric-wrapper expandable" data-metric="aqi">
                                     <div class="metric-label-row">
