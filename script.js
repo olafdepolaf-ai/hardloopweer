@@ -798,7 +798,7 @@ function buildClothingItems(temp, bft, uvIndex) {
     if (temp < 10 && bft >= 5) items.push(t('clothing_add_windjack'));
     if (uvIndex > 3) items.push(t('clothing_add_sunscreen'));
     if (uvIndex > 4) items.push(t('clothing_add_cap'));
-    if (temp > 2) {
+    if (temp > 22) {
         const dow = new Date().getDay(); // 0=Sunday, 6=Saturday
         items.push(dow === 0 || dow === 6 ? t('clothing_add_long_run') : t('clothing_add_waterfles'));
     }
