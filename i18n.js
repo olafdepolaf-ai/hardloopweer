@@ -1,6 +1,7 @@
 'use strict';
 const STRINGS = {
   nl: {
+    app_name: 'Hardloopweer',
     page_title: 'Hardloopweer – Is het een goede dag om te rennen?',
     page_desc: 'Check snel of het hardloopweer is in jouw stad. Temperatuur, regen, wind en kledingadvies in één oogopslag.',
     search_placeholder: 'Stad zoeken...',
@@ -121,6 +122,7 @@ const STRINGS = {
   },
 
   en: {
+    app_name: 'Running Weather',
     page_title: 'Running Weather – Is it a good day to run?',
     page_desc: 'Quickly check if the weather is good for running in your city. Temperature, rain, wind and clothing advice at a glance.',
     search_placeholder: 'Search city...',
@@ -240,6 +242,7 @@ const STRINGS = {
   },
 
   de: {
+    app_name: 'Laufwetter',
     page_title: 'Laufwetter – Ist es ein guter Tag zum Laufen?',
     page_desc: 'Schnell prüfen ob das Wetter zum Laufen geeignet ist. Temperatur, Regen, Wind und Kleidungstipps auf einen Blick.',
     search_placeholder: 'Stadt suchen...',
@@ -359,6 +362,7 @@ const STRINGS = {
   },
 
   fr: {
+    app_name: 'Météo Running',
     page_title: 'Météo Running – Est-ce une bonne journée pour courir ?',
     page_desc: "Vérifiez rapidement si le temps est propice à la course dans votre ville. Température, pluie, vent et conseils vestimentaires en un coup d'œil.",
     search_placeholder: 'Rechercher une ville...',
@@ -474,6 +478,7 @@ const STRINGS = {
   },
 
   es: {
+    app_name: 'Tiempo para Correr',
     page_title: 'Tiempo para Correr – ¿Es un buen día para salir a correr?',
     page_desc: 'Comprueba rápidamente si el tiempo es bueno para correr en tu ciudad. Temperatura, lluvia, viento y consejos de ropa de un vistazo.',
     search_placeholder: 'Buscar ciudad...',
@@ -594,6 +599,7 @@ const STRINGS = {
   },
 
   sv: {
+    app_name: 'Löparväder',
     page_title: 'Löparväder – Är det en bra dag att springa?',
     page_desc: 'Kolla snabbt om vädret passar för löpning i din stad. Temperatur, regn, vind och klädtips i en blick.',
     search_placeholder: 'Sök stad...',
