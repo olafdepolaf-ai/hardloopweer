@@ -66,8 +66,11 @@
                     <div class="hero-content">
                         <div class="hero-left">
                             <img id="weather-icon" src="https://cdn.jsdelivr.net/npm/@meteocons/svg@0.1.0/fill/overcast.svg" alt="" class="weather-icon-main" width="80" height="80" onerror="this.src='https://cdn.jsdelivr.net/npm/@meteocons/svg@0.1.0/fill/overcast.svg'">
-                            <div class="hero-temp-row">
-                                <span id="current-temp">--°</span>
+                            <div class="hero-temp-wrap">
+                                <div class="hero-temp-row">
+                                    <span id="current-temp" class="temp-loading">--°</span>
+                                </div>
+                                <span id="feels-like-temp" class="feels-like-sub" hidden></span>
                             </div>
                         </div>
                         <div class="hero-right">

@@ -400,6 +400,7 @@ async function init() {
     applyTranslations();
     updateTime();
     setInterval(updateTime, 10000);
+    setInterval(fetchWeather, 10 * 60 * 1000);
     updateBuienradar();
     window.addEventListener('resize', scaleBuienradar);
 
@@ -663,30 +664,34 @@ function renderWindSpeedChart(hourly) {
     for (let i = 0; i < 25 && startIdx + i < hourly.time.length; i++) {
         const idx = startIdx + i;
         labels.push(hourly.time[idx].substring(11, 16));
-        speeds.push(Math.round(hourly.wind_speed_10m?.[idx] ?? 0));
-        if (hourly.wind_gusts_10m) gusts.push(Math.round(hourly.wind_gusts_10m[idx] ?? 0));
+        speeds.push(getBeaufort(hourly.wind_speed_10m?.[idx] ?? 0));
+        if (hourly.wind_gusts_10m) gusts.push(getBeaufort(hourly.wind_gusts_10m[idx] ?? 0));
     }
 
     if (state.windChart) { state.windChart.destroy(); state.windChart = null; }
     const dark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const theme = chartTheme();
 
-    const series = [{ name: 'Wind (km/u)', data: speeds }];
-    if (gusts.length) series.push({ name: 'Windstoten', data: gusts });
+    const hasGusts = gusts.length > 0;
+    const series = [
+        { name: 'Wind (Bft)', type: 'bar', data: speeds },
+        ...(hasGusts ? [{ name: 'Windstoten (Bft)', type: 'line', data: gusts }] : []),
+    ];
 
     state.windChart = new ApexCharts(el, {
         series,
-        chart: { type: 'area', height: 220, background: 'transparent', toolbar: { show: false }, animations: { enabled: false }, fontFamily: 'inherit' },
+        chart: { type: 'bar', height: 220, background: 'transparent', toolbar: { show: false }, animations: { enabled: false }, fontFamily: 'inherit' },
         theme: { mode: dark ? 'dark' : 'light' },
         dataLabels: { enabled: false },
-        stroke: { curve: 'smooth', width: [2, 1.5], dashArray: [0, 5] },
-        fill: { type: ['gradient', 'solid'], gradient: { shade: 'light', type: 'vertical', opacityFrom: 0.4, opacityTo: 0.02 }, opacity: [1, 0] },
-        colors: ['#3b82f6', '#94a3b8'],
+        stroke: { curve: 'smooth', width: [0, 2] },
+        colors: ['#3b82f6', '#f59e0b'],
+        plotOptions: { bar: { borderRadius: 2, columnWidth: '60%' } },
+        fill: { opacity: [0.85, 1] },
         xaxis: { categories: labels, tickAmount: 6, labels: { style: { fontSize: '10px', colors: theme.labelColor } }, axisBorder: { show: false }, axisTicks: { show: false } },
-        yaxis: { min: 0, labels: { style: { fontSize: '10px', colors: theme.labelColor } } },
+        yaxis: { min: 0, max: 12, tickAmount: 6, labels: { style: { fontSize: '10px', colors: theme.labelColor }, formatter: v => `${v} Bft` } },
         grid: { borderColor: theme.gridColor, strokeDashArray: 3 },
-        legend: { show: gusts.length > 0, fontSize: '11px' },
-        tooltip: { y: { formatter: v => `${v} km/u` } },
+        legend: { show: hasGusts, fontSize: '11px' },
+        tooltip: { y: { formatter: v => `${v} Bft` } },
     });
     state.windChart.render();
 }
@@ -814,7 +819,23 @@ function updateUI(data) {
     if (data.utc_offset_seconds !== undefined) state.utcOffsetSeconds = data.utc_offset_seconds;
     if (data.timezone) state.timezone = data.timezone;
 
-    els.currentTemp.innerText = `${Math.round(current.temperature_2m)}°`;
+    const tempEl = els.currentTemp;
+    const tempVal = Math.round(current.temperature_2m);
+    const feelsVal = Math.round(current.apparent_temperature);
+    tempEl.classList.remove('temp-loading', 'temp-loaded');
+    void tempEl.offsetWidth; // reflow to restart animation
+    tempEl.classList.add('temp-loaded');
+    tempEl.innerText = `${tempVal}°`;
+
+    const feelsEl = document.getElementById('feels-like-temp');
+    if (feelsEl) {
+        if (feelsVal !== tempVal) {
+            feelsEl.textContent = t('label_feels_like_short', { temp: feelsVal });
+            feelsEl.hidden = false;
+        } else {
+            feelsEl.hidden = true;
+        }
+    }
 
     const bft = getBeaufort(current.wind_speed_10m);
     if (els.windForce) els.windForce.innerText = `${bft} Bft`;

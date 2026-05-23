@@ -262,6 +262,13 @@ header {
     gap: 4px;
 }
 
+.hero-temp-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
 .hero-temp-row {
     display: flex;
     align-items: baseline;
@@ -291,6 +298,34 @@ header {
     font-size: clamp(2rem, 7vw, 3rem);
     font-weight: 600;
     line-height: 1;
+    transition: opacity 0.4s ease;
+}
+
+#current-temp.temp-loading {
+    opacity: 0.25;
+    animation: temp-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes temp-pulse {
+    0%, 100% { opacity: 0.2; }
+    50%       { opacity: 0.45; }
+}
+
+#current-temp.temp-loaded {
+    animation: temp-fade-in 0.45s ease forwards;
+}
+
+@keyframes temp-fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.feels-like-sub {
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: var(--text-muted, #9ca3af);
+    line-height: 1;
+    text-align: center;
 }
 
 .weather-hero-container {
