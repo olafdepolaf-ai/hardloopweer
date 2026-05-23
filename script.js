@@ -70,6 +70,68 @@ const CONFIG = {
     DEFAULT_LON: 4.9041
 };
 
+const JSONBIN_URL = 'https://api.jsonbin.io/v3/b/6a11e4176610dd3ae893718d';
+const JSONBIN_KEY = '$2a$10$fZv7/kP647Xa2MVZtkuHWurVi3tkS10v0N/NN8gBCwiZy9Wft0cQ.';
+let _translationCache = null; // in-memory, loaded once per sessie
+
+function simpleHash(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+    return Math.abs(h).toString(36);
+}
+
+async function getTranslationCache() {
+    if (_translationCache !== null) return _translationCache;
+    try {
+        const res = await fetch(`${JSONBIN_URL}/latest`, {
+            headers: { 'X-Access-Key': JSONBIN_KEY, 'X-Bin-Meta': 'false' }
+        });
+        _translationCache = res.ok ? await res.json() : {};
+    } catch { _translationCache = {}; }
+    return _translationCache;
+}
+
+async function saveTranslationCache(cache) {
+    _translationCache = cache;
+    try {
+        await fetch(JSONBIN_URL, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'X-Access-Key': JSONBIN_KEY },
+            body: JSON.stringify(cache),
+        });
+    } catch (e) { console.warn('JSONBin write mislukt:', e); }
+}
+
+async function translateField(text, lang) {
+    if (!text) return text;
+    const res = await fetch(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=nl|${lang}&de=olaflemmers@gmail.com`
+    );
+    const json = await res.json();
+    return json?.responseData?.translatedText || text;
+}
+
+async function translateReport(fields, lang) {
+    const hash = simpleHash(fields.body + fields.summary);
+    const cacheKey = `${lang}_${hash}`;
+
+    const cache = await getTranslationCache();
+    if (cache[cacheKey]) return cache[cacheKey];
+
+    const [title, summary, body, shortterm, longterm] = await Promise.all([
+        translateField(fields.title, lang),
+        translateField(fields.summary, lang),
+        translateField(fields.body, lang),
+        translateField(fields.shortterm, lang),
+        translateField(fields.longterm, lang),
+    ]);
+
+    const result = { title, summary, body, shortterm, longterm };
+    cache[cacheKey] = result;
+    saveTranslationCache(cache); // fire-and-forget
+    return result;
+}
+
 const els = {
     citySearch: document.getElementById('city-search'),
     cityName: document.getElementById('city-name'),
@@ -1184,13 +1246,6 @@ async function fetchWeatherReport() {
         const longterm = forecast.longterm;
         if (!wr) return;
 
-        // Show API headline as bold title of the weather report card
-        const reportTitleEl = document.getElementById('weather-report-title');
-        if (reportTitleEl && wr.title) {
-            reportTitleEl.innerHTML = wr.title;
-            reportTitleEl.classList.remove('hidden');
-        }
-
         const decodeHtml = s => {
             const tmp = document.createElement('div');
             tmp.innerHTML = s.replace(/<[^>]+>/g, ' ');
@@ -1224,39 +1279,44 @@ async function fetchWeatherReport() {
             return `${s[2]} ${months[s[1]-1]} – ${e[2]} ${months[e[1]-1]}`;
         };
 
-        const summaryEl = document.getElementById('weather-report-summary');
-        if (summaryEl) {
-            const summaryText = decodeHtml(wr.summary || '');
-            const timeStr = formatPublishedTime(wr.published || '');
-            summaryEl.innerHTML = escHtml(summaryText)
-                + (timeStr ? ` <span class="weather-report-time">${escHtml(timeStr)}</span>` : '');
-        }
+        // Extract raw Dutch texts
+        const rawTitle    = wr.title || '';
+        const rawSummary  = decodeHtml(wr.summary || '');
+        const rawBody     = decodeHtml(wr.text || '');
+        const rawShort    = shortterm?.forecast || '';
+        const rawLong     = longterm?.forecast || '';
+        const timeStr     = formatPublishedTime(wr.published || '');
+        const shortRange  = shortterm?.startdate && shortterm?.enddate ? `${formatDateRange(shortterm.startdate, shortterm.enddate)}: ` : '';
+        const longRange   = longterm?.startdate && longterm?.enddate   ? `${formatDateRange(longterm.startdate, longterm.enddate)}: `   : '';
 
-        const textEl = document.getElementById('weather-report-text');
-        if (textEl) {
-            const bodyText = decodeHtml(wr.text || '');
-            // Add blank line before sentences starting with "Morgen"
-            const processed = bodyText.replace(/([.!?])\s+(Morgen|morgen)/g, '$1\n\n$2');
-            textEl.textContent = processed;
-        }
+        const renderTexts = (f) => {
+            const summaryEl = document.getElementById('weather-report-summary');
+            if (summaryEl) {
+                summaryEl.innerHTML = escHtml(f.summary)
+                    + (timeStr ? ` <span class="weather-report-time">${escHtml(timeStr)}</span>` : '');
+            }
+            const reportTitleEl = document.getElementById('weather-report-title');
+            if (reportTitleEl && f.title) {
+                reportTitleEl.innerHTML = escHtml(f.title);
+                reportTitleEl.classList.remove('hidden');
+            }
+            const textEl = document.getElementById('weather-report-text');
+            if (textEl) textEl.textContent = f.body.replace(/([.!?])\s+(Morgen|morgen|Tomorrow|tomorrow|Demain|demain|Mañana|mañana|Imorgon|imorgon)/g, '$1\n\n$2');
+            const shorttermEl = document.getElementById('weather-shortterm');
+            if (shorttermEl && f.shortterm) shorttermEl.textContent = shortRange + f.shortterm;
+            const longtermEl = document.getElementById('weather-longterm');
+            if (longtermEl && f.longterm) longtermEl.textContent = longRange + f.longterm;
+        };
 
-        const shorttermEl = document.getElementById('weather-shortterm');
-        if (shorttermEl && shortterm?.forecast) {
-            const range = shortterm.startdate && shortterm.enddate
-                ? `${formatDateRange(shortterm.startdate, shortterm.enddate)}: `
-                : '';
-            shorttermEl.textContent = range + shortterm.forecast;
-        }
-
-        const longtermEl = document.getElementById('weather-longterm');
-        if (longtermEl && longterm?.forecast) {
-            const range = longterm.startdate && longterm.enddate
-                ? `${formatDateRange(longterm.startdate, longterm.enddate)}: `
-                : '';
-            longtermEl.textContent = range + longterm.forecast;
-        }
-
+        // Show Dutch immediately, then replace with translation if needed
+        renderTexts({ title: rawTitle, summary: rawSummary, body: rawBody, shortterm: rawShort, longterm: rawLong });
         card.classList.remove('hidden');
+
+        if (state.lang !== 'nl') {
+            translateReport({ title: rawTitle, summary: rawSummary, body: rawBody, shortterm: rawShort, longterm: rawLong }, state.lang)
+                .then(renderTexts)
+                .catch(() => {});
+        }
     } catch (e) {
         console.warn('fetchWeatherReport mislukt:', e.message);
     }
