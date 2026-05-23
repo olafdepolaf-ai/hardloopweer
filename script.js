@@ -428,6 +428,23 @@ async function init() {
         if (btn?.dataset.metric) toggleMetricPanel(btn.dataset.metric);
     });
 
+    // Swipe left/right on expand area to cycle through metrics
+    let swipeTouchStartX = 0;
+    const expandArea = document.getElementById('metric-expand-area');
+    expandArea?.addEventListener('touchstart', e => {
+        swipeTouchStartX = e.touches[0].clientX;
+    }, { passive: true });
+    expandArea?.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - swipeTouchStartX;
+        if (Math.abs(dx) < 48 || !activeMetric) return;
+        const metrics = [...document.querySelectorAll('.metric-item[data-metric]')].map(el => el.dataset.metric);
+        const idx = metrics.indexOf(activeMetric);
+        const next = dx < 0
+            ? metrics[(idx + 1) % metrics.length]
+            : metrics[(idx - 1 + metrics.length) % metrics.length];
+        toggleMetricPanel(next);
+    }, { passive: true });
+
     // AQI overlay (kept for backwards compat)
     document.getElementById('aqi-overlay-close')?.addEventListener('click', closeAQIOverlay);
     document.getElementById('aqi-overlay-backdrop')?.addEventListener('click', closeAQIOverlay);
