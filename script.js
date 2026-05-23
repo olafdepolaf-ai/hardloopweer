@@ -1752,6 +1752,23 @@ function parseRIVMBands(props, startBand, endBand) {
     return result;
 }
 
+function getPollutantColor(name, val) {
+    if (val === null || val === undefined) return WARN.none;
+    const thresholds = {
+        pm25: [10, 20, 25, 50],
+        pm10: [20, 40, 50, 100],
+        no2:  [40, 90, 120, 230],
+        o3:   [50, 100, 130, 240],
+    };
+    const t = thresholds[name];
+    if (!t) return WARN.none;
+    if (val <= t[0]) return WARN.green;
+    if (val <= t[1]) return WARN.yellow;
+    if (val <= t[2]) return WARN.yellow;
+    if (val <= t[3]) return WARN.orange;
+    return WARN.red;
+}
+
 function getAQILevel(aqi) {
     if (aqi <= 20) return { label: t('aqi_good'),          color: WARN.green,  cls: 'aqi-good',      tipKey: 'good' };
     if (aqi <= 40) return { label: t('aqi_fair'),          color: WARN.yellow, cls: 'aqi-fair',      tipKey: 'fair' };
@@ -1800,6 +1817,11 @@ async function fetchAQI() {
         const no2  = c.nitrogen_dioxide?.toFixed(1) ?? '–';
         const o3   = c.ozone?.toFixed(1) ?? '–';
 
+        const pollutantDot = (name, raw) => {
+            const color = getPollutantColor(name, raw ?? null);
+            return `<span class="aqi-pollutant-dot" style="background:${color}"></span>`;
+        };
+
         const markerPct = Math.min(Math.max((aqi / 150) * 100, 2), 98);
         const aqiHtml = `
             <div class="aqi-full-panel">
@@ -1819,10 +1841,10 @@ async function fetchAQI() {
                     </div>
                 </div>
                 <div class="aqi-pollutants-grid">
-                    <div class="aqi-pollutant-card"><span class="aqi-pollutant-name">PM2.5</span><span class="aqi-pollutant-val">${pm25}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
-                    <div class="aqi-pollutant-card"><span class="aqi-pollutant-name">PM10</span><span class="aqi-pollutant-val">${pm10}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
-                    <div class="aqi-pollutant-card"><span class="aqi-pollutant-name">NO₂</span><span class="aqi-pollutant-val">${no2}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
-                    <div class="aqi-pollutant-card"><span class="aqi-pollutant-name">O₃</span><span class="aqi-pollutant-val">${o3}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
+                    <div class="aqi-pollutant-card">${pollutantDot('pm25', c.pm2_5)}<span class="aqi-pollutant-name">PM2.5</span><span class="aqi-pollutant-val">${pm25}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
+                    <div class="aqi-pollutant-card">${pollutantDot('pm10', c.pm10)}<span class="aqi-pollutant-name">PM10</span><span class="aqi-pollutant-val">${pm10}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
+                    <div class="aqi-pollutant-card">${pollutantDot('no2', c.nitrogen_dioxide)}<span class="aqi-pollutant-name">NO₂</span><span class="aqi-pollutant-val">${no2}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
+                    <div class="aqi-pollutant-card">${pollutantDot('o3', c.ozone)}<span class="aqi-pollutant-name">O₃</span><span class="aqi-pollutant-val">${o3}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
                 </div>
                 <p class="aqi-panel-tip">${escHtml(t('aqi_tip_' + level.tipKey))}</p>
             </div>

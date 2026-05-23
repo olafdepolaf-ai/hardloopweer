@@ -1280,6 +1280,14 @@ header {
     background: var(--surface-muted, rgba(0,0,0,0.04));
 }
 
+.aqi-pollutant-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-bottom: 2px;
+}
+
 .aqi-pollutant-card .aqi-pollutant-name {
     font-size: 0.72rem;
     font-weight: 600;
