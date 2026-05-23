@@ -140,42 +140,41 @@
                     <p id="comfort-container" class="hero-weather-title hidden">
                         <span id="comfort-level"></span>
                     </p>
-                </section>
-            </div>
-
-            <div id="metric-expand-area" class="metric-expand-area">
-                <section id="metric-panel-temp" class="card metric-panel">
-                    <div class="chart-container">
-                        <div id="temp-chart"></div>
+                    <div id="metric-expand-area" class="metric-expand-area">
+                        <section id="metric-panel-temp" class="metric-panel">
+                            <div class="chart-container">
+                                <div id="temp-chart"></div>
+                            </div>
+                            <div class="chart-container chart-container-secondary">
+                                <div id="dewpoint-chart"></div>
+                            </div>
+                            <div id="dewpoint-status" class="dewpoint-status hidden" aria-live="polite">
+                                <span class="dewpoint-status-dot"></span>
+                                <span id="dewpoint-status-text"></span>
+                            </div>
+                        </section>
+                        <section id="metric-panel-wind" class="metric-panel">
+                            <div id="wind-detail-content" class="wind-detail-content"></div>
+                        </section>
+                        <section id="metric-panel-uv" class="metric-panel">
+                            <h3 data-i18n="section_uv">Zonkracht</h3>
+                            <div class="uv-current-row">
+                                <span id="uv-current" class="uv-stat-value">--</span>
+                                <span id="uv-level" class="uv-badge">--</span>
+                            </div>
+                            <div class="uv-max-row">
+                                <span class="uv-stat-label" data-i18n="uv_max_label">Max. verwacht</span>
+                                <span id="uv-max" class="uv-stat-secondary">--</span>
+                            </div>
+                            <div class="uv-chart-container">
+                                <canvas id="uv-chart"></canvas>
+                            </div>
+                            <p id="uv-tip" class="uv-tip"></p>
+                        </section>
+                        <section id="metric-panel-aqi" class="metric-panel">
+                            <div id="aqi-panel-body"></div>
+                        </section>
                     </div>
-                    <div class="chart-container chart-container-secondary">
-                        <div id="dewpoint-chart"></div>
-                    </div>
-                    <div id="dewpoint-status" class="dewpoint-status hidden" aria-live="polite">
-                        <span class="dewpoint-status-dot"></span>
-                        <span id="dewpoint-status-text"></span>
-                    </div>
-                </section>
-                <section id="metric-panel-wind" class="card metric-panel">
-                    <div id="wind-detail-content" class="wind-detail-content"></div>
-                </section>
-                <section id="metric-panel-uv" class="card metric-panel">
-                    <h3 data-i18n="section_uv">Zonkracht</h3>
-                    <div class="uv-current-row">
-                        <span id="uv-current" class="uv-stat-value">--</span>
-                        <span id="uv-level" class="uv-badge">--</span>
-                    </div>
-                    <div class="uv-max-row">
-                        <span class="uv-stat-label" data-i18n="uv_max_label">Max. verwacht</span>
-                        <span id="uv-max" class="uv-stat-secondary">--</span>
-                    </div>
-                    <div class="uv-chart-container">
-                        <canvas id="uv-chart"></canvas>
-                    </div>
-                    <p id="uv-tip" class="uv-tip"></p>
-                </section>
-                <section id="metric-panel-aqi" class="card metric-panel">
-                    <div id="aqi-panel-body"></div>
                 </section>
             </div>
 

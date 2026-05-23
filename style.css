@@ -335,7 +335,7 @@ header {
 }
 
 #weather-hero {
-    overflow: hidden;
+    overflow: visible;
     position: relative;
     max-width: 600px;
     width: 100%;
@@ -987,22 +987,28 @@ header {
     overflow: hidden;
     padding-top: 0;
     padding-bottom: 0;
-    margin-bottom: 0;
-    border-width: 0;
-    transition: max-height 0.35s ease, padding 0.25s ease, margin 0.25s ease, border-width 0.25s ease;
+    margin-top: 0;
+    border-top: 0px solid transparent;
+    transition: max-height 0.38s ease, padding 0.28s ease, margin 0.28s ease, border-color 0.2s ease, border-top-width 0.2s ease;
     pointer-events: none;
-    max-width: none;
     width: 100%;
     align-items: stretch;
+    display: flex;
+    flex-direction: column;
 }
 
 .metric-panel.expanded {
     max-height: 2000px;
-    padding-top: 20px;
-    padding-bottom: 20px;
-    margin-bottom: 16px;
-    border-width: 1px;
+    padding-top: 18px;
+    padding-bottom: 4px;
+    margin-top: 16px;
+    border-top: 2px solid var(--border, rgba(0,0,0,0.1));
     pointer-events: auto;
+}
+
+/* Hero card shows active state with bold bottom accent */
+#weather-hero.hero-expanded {
+    border-bottom: 3px solid var(--accent, #3b82f6);
 }
 
 /* ── Metric expand buttons ────────────────────────────── */
@@ -1015,19 +1021,19 @@ header {
     align-items: center;
     justify-content: center;
     color: inherit;
-    opacity: 0.4;
+    opacity: 0.45;
     transition: opacity 0.15s;
     flex-shrink: 0;
 }
 
-.metric-expand-btn:hover { opacity: 0.8; }
-.metric-expand-btn.active { opacity: 1; }
+.metric-expand-btn:hover { opacity: 0.85; }
+.metric-expand-btn.active { opacity: 1; color: var(--accent, #3b82f6); }
 
 .metric-expand-btn i[data-lucide] {
-    width: 13px;
-    height: 13px;
+    width: 14px;
+    height: 14px;
     stroke-width: 2.5;
-    transition: transform 0.25s ease;
+    transition: transform 0.28s ease;
 }
 
 .metric-expand-btn.active i[data-lucide] {
@@ -1054,11 +1060,11 @@ header {
     width: 100%;
 }
 
-/* Active underline indicator */
+/* Active underline on the metric tile */
 .metric-item.metric-active,
 .hero-left.metric-active {
-    border-bottom: 2px solid var(--text-primary, #111);
-    padding-bottom: 2px;
+    border-bottom: 3px solid var(--accent, #3b82f6);
+    padding-bottom: 3px;
 }
 
 /* ── Metric label icons ───────────────────────────────── */

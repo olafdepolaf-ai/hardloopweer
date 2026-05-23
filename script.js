@@ -559,10 +559,12 @@ function degreesToCompass(deg) {
 function toggleMetricPanel(key) {
     const panelId = `metric-panel-${key}`;
 
+    const hero = document.getElementById('weather-hero');
     const collapseAll = () => {
         document.querySelectorAll('.metric-panel').forEach(p => p.classList.remove('expanded'));
         document.querySelectorAll('.metric-expand-btn').forEach(b => b.classList.remove('active'));
         document.querySelectorAll('.metric-item[data-metric], .hero-left[data-metric]').forEach(el => el.classList.remove('metric-active'));
+        hero?.classList.remove('hero-expanded');
     };
 
     if (activeMetric === key) {
@@ -577,6 +579,7 @@ function toggleMetricPanel(key) {
     document.getElementById(panelId)?.classList.add('expanded');
     document.querySelectorAll(`.metric-expand-btn[data-metric="${key}"]`).forEach(b => b.classList.add('active'));
     document.querySelectorAll(`.metric-item[data-metric="${key}"], .hero-left[data-metric="${key}"]`).forEach(el => el.classList.add('metric-active'));
+    hero?.classList.add('hero-expanded');
 
     // Wait for CSS transition (350ms) before re-rendering charts
     setTimeout(() => {
@@ -692,7 +695,7 @@ function renderWindSpeedChart(hourly) {
         fill: { opacity: [0.85, 1] },
         markers: { size: [0, 4], discrete: gustMarkers },
         xaxis: { categories: labels, tickAmount: 6, labels: { style: { fontSize: '10px', colors: theme.labelColor } }, axisBorder: { show: false }, axisTicks: { show: false } },
-        yaxis: { min: 0, max: 12, tickAmount: 6, labels: { style: { fontSize: '10px', colors: theme.labelColor }, formatter: v => `${v} Bft` } },
+        yaxis: { min: 0, max: Math.max(...speeds, ...gusts, 3) + 1, tickAmount: 4, labels: { style: { fontSize: '10px', colors: theme.labelColor }, formatter: v => Number.isInteger(v) ? `${v} Bft` : '' } },
         grid: { borderColor: theme.gridColor, strokeDashArray: 3 },
         legend: { show: false },
         tooltip: { y: { formatter: v => `${v} Bft` } },
