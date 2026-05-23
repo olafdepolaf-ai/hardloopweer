@@ -673,6 +673,9 @@ function renderWindSpeedChart(hourly) {
     const theme = chartTheme();
 
     const hasGusts = gusts.length > 0;
+    const barColors = speeds.map(bft => getWindDotColor(bft));
+    const gustMarkers = gusts.map((bft, i) => ({ seriesIndex: 1, dataPointIndex: i, fillColor: getWindDotColor(bft), strokeColor: getWindDotColor(bft), size: 4 }));
+
     const series = [
         { name: 'Wind (Bft)', type: 'bar', data: speeds },
         ...(hasGusts ? [{ name: 'Windstoten (Bft)', type: 'line', data: gusts }] : []),
@@ -684,13 +687,14 @@ function renderWindSpeedChart(hourly) {
         theme: { mode: dark ? 'dark' : 'light' },
         dataLabels: { enabled: false },
         stroke: { curve: 'smooth', width: [0, 2] },
-        colors: ['#3b82f6', '#f59e0b'],
-        plotOptions: { bar: { borderRadius: 2, columnWidth: '60%' } },
+        colors: [() => barColors, dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.18)'],
+        plotOptions: { bar: { borderRadius: 2, columnWidth: '60%', distributed: true } },
         fill: { opacity: [0.85, 1] },
+        markers: { size: [0, 4], discrete: gustMarkers },
         xaxis: { categories: labels, tickAmount: 6, labels: { style: { fontSize: '10px', colors: theme.labelColor } }, axisBorder: { show: false }, axisTicks: { show: false } },
         yaxis: { min: 0, max: 12, tickAmount: 6, labels: { style: { fontSize: '10px', colors: theme.labelColor }, formatter: v => `${v} Bft` } },
         grid: { borderColor: theme.gridColor, strokeDashArray: 3 },
-        legend: { show: hasGusts, fontSize: '11px' },
+        legend: { show: false },
         tooltip: { y: { formatter: v => `${v} Bft` } },
     });
     state.windChart.render();
