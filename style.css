@@ -218,9 +218,9 @@ header {
     border-left: 4px solid var(--alert-color, #F9AB00);
 }
 
-.alert-item.alert-yellow { --alert-color: #F9AB00; }
-.alert-item.alert-orange { --alert-color: #F57C00; }
-.alert-item.alert-red    { --alert-color: #D93025; }
+.alert-item.alert-yellow { --alert-color: #FACC15; }
+.alert-item.alert-orange { --alert-color: #F97316; }
+.alert-item.alert-red    { --alert-color: #EF4444; }
 
 .alert-header {
     display: flex;
@@ -554,7 +554,7 @@ header {
 }
 
 .weather-report-body {
-    font-size: 0.9rem;
+    font-size: 1rem;
     line-height: 1.7;
     margin-bottom: 16px;
     white-space: pre-wrap;
@@ -574,7 +574,7 @@ header {
 }
 
 .weather-report-outlook-item {
-    font-size: 0.9rem;
+    font-size: 1rem;
     line-height: 1.55;
     opacity: 0.8;
     margin-bottom: 8px;
@@ -723,15 +723,15 @@ header {
 }
 
 .dewpoint-status-yellow {
-    --dewpoint-status-color: var(--warning-color);
+    --dewpoint-status-color: #FACC15;
 }
 
 .dewpoint-status-orange {
-    --dewpoint-status-color: #f57c00;
+    --dewpoint-status-color: #F97316;
 }
 
 .dewpoint-status-red {
-    --dewpoint-status-color: var(--danger-color);
+    --dewpoint-status-color: #EF4444;
 }
 
 /* ── UV / Zonkracht ───────────────────────────────────── */
@@ -1235,10 +1235,10 @@ header {
     height: 10px;
     border-radius: 5px;
     background: linear-gradient(to right,
-        #57BB8A 0%,
-        #F9AB00 40%,
-        #F57C00 67%,
-        #D93025 100%);
+        #22C55E 0%,
+        #FACC15 40%,
+        #F97316 67%,
+        #EF4444 100%);
     position: relative;
     margin-bottom: 5px;
 }

@@ -1,4 +1,4 @@
-const WARN = { green: '#57BB8A', yellow: '#F9AB00', orange: '#F57C00', red: '#D93025', none: '#9E9E9E' };
+const WARN = { green: '#22C55E', yellow: '#FACC15', orange: '#F97316', red: '#EF4444', none: '#9E9E9E' };
 
 const FEATURE_THEME = 'beter'; // 'default' of 'beter'
 document.documentElement.dataset.theme = FEATURE_THEME;
