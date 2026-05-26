@@ -900,6 +900,7 @@ async function searchCity(query) {
             els.cityName.innerText = state.city;
             saveLastLocation();
             saveRecentLocation({ lat: state.lat, lon: state.lon, city: state.city });
+            updateUrlForLocation(loc.name, (loc.country_code || '').toUpperCase());
             fetchWeather();
             updateBuienradar();
             if (!els.searchToggle.classList.contains('hidden')) {
