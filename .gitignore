@@ -7,6 +7,9 @@
 # Claude Code (bevat machine-specifieke paden en permissies)
 .claude/
 
+# Auto-gegenereerd door andere AI-frameworks (OpenAI Codex e.d.) — niet tracken
+AGENTS.md
+
 # Environment variables
 .env
 .env.*
