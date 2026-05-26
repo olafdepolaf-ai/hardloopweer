@@ -70,6 +70,12 @@ const CONFIG = {
     DEFAULT_LON: 4.9041
 };
 
+const URL_COUNTRIES = {
+    'nederland': 'NL',
+    'duitsland': 'DE',
+};
+const URL_COUNTRY_SLUGS = Object.fromEntries(Object.entries(URL_COUNTRIES).map(([k, v]) => [v, k]));
+
 const JSONBIN_URL = 'https://api.jsonbin.io/v3/b/6a11e4176610dd3ae893718d';
 const JSONBIN_KEY = '$2a$10$fZv7/kP647Xa2MVZtkuHWurVi3tkS10v0N/NN8gBCwiZy9Wft0cQ.';
 let _translationCache = null; // in-memory, loaded once per sessie
@@ -209,6 +215,69 @@ function isInGermany() {
     return state.lat >= 47.2 && state.lat <= 55.1 && state.lon >= 5.8 && state.lon <= 15.1;
 }
 
+// ---- URL routing ----
+
+function toUrlSlug(str) {
+    return str.toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
+}
+
+function updateUrlForLocation(city, countryCode) {
+    const countrySlug = URL_COUNTRY_SLUGS[countryCode?.toUpperCase()];
+    if (!countrySlug) return;
+    const citySlug = toUrlSlug(city);
+    const existingLang = new URLSearchParams(window.location.search).get('lang');
+    const langParam = existingLang ? `?lang=${existingLang}` : (state.lang !== 'nl' ? `?lang=${state.lang}` : '');
+    history.pushState({ city, countryCode }, '', `/${countrySlug}/${citySlug}${langParam}`);
+}
+
+function showUrlFallbackMessage(type, city) {
+    const el = document.getElementById('url-fallback-msg');
+    if (!el) return;
+    const msg = type === 'not_found'
+        ? t('url_not_found', { city })
+        : t('url_invalid');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    setTimeout(() => el.classList.add('hidden'), 8000);
+}
+
+async function loadLocationFromUrl() {
+    const path = window.location.pathname.replace(/\/$/, '');
+    const parts = path.split('/').filter(Boolean);
+    if (parts.length < 2) return false;
+
+    const countryCode = URL_COUNTRIES[parts[0]];
+    if (!countryCode) {
+        if (parts.length >= 2) showUrlFallbackMessage('invalid');
+        return false;
+    }
+
+    const cityQuery = parts[1].replace(/-/g, ' ');
+    try {
+        const res = await fetch(`${CONFIG.GEO_API_URL}?name=${encodeURIComponent(cityQuery)}&count=10&language=nl&format=json`);
+        const data = await res.json();
+        const results = (data.results || []).filter(r => r.country_code?.toUpperCase() === countryCode);
+        if (!results.length) {
+            showUrlFallbackMessage('not_found', cityQuery);
+            return false;
+        }
+        const r = results[0];
+        state.lat = r.latitude;
+        state.lon = r.longitude;
+        state.city = r.name;
+        if (els.cityName) els.cityName.innerText = r.name;
+        if (els.citySearch) els.citySearch.value = r.name;
+        if (DEBUG) { state._debug.geoSource = `URL /${parts[0]}/${parts[1]}`; renderDebug(); }
+        return true;
+    } catch {
+        showUrlFallbackMessage('invalid');
+        return false;
+    }
+}
+
 // ---- Weather alerts ----
 
 const ALERT_ICONS = {
@@ -340,7 +409,7 @@ function showSuggestions(results) {
     ul.innerHTML = results.map((r, i) => {
         const flag = countryFlag(r.country_code);
         const detail = [r.admin1, r.country].filter(Boolean).join(', ');
-        return `<li class="search-suggestion-item" data-idx="${i}" data-lat="${r.latitude}" data-lon="${r.longitude}" data-name="${escAttr(r.name)}">
+        return `<li class="search-suggestion-item" data-idx="${i}" data-lat="${r.latitude}" data-lon="${r.longitude}" data-name="${escAttr(r.name)}" data-country="${escAttr((r.country_code || '').toUpperCase())}">
             <span class="suggestion-name">${flag} ${escHtml(r.name)}</span>
             <span class="suggestion-detail">${escHtml(detail)}</span>
         </li>`;
@@ -380,6 +449,7 @@ function selectSuggestion(item) {
     const lat = parseFloat(item.dataset.lat);
     const lon = parseFloat(item.dataset.lon);
     const name = item.dataset.name;
+    const countryCode = item.dataset.country || '';
     state.lat = lat;
     state.lon = lon;
     state.city = name;
@@ -388,6 +458,7 @@ function selectSuggestion(item) {
     hideSuggestions();
     saveLastLocation();
     saveRecentLocation({ lat, lon, city: name });
+    updateUrlForLocation(name, countryCode);
     fetchWeather();
     updateBuienradar();
     if (!els.searchToggle?.classList.contains('hidden')) {
@@ -532,39 +603,49 @@ async function init() {
     state.city = CONFIG.DEFAULT_CITY;
     if (els.cityName) els.cityName.innerText = CONFIG.DEFAULT_CITY;
     if (DEBUG) { state._debug.geoSource = 'default Amsterdam'; renderDebug(); }
-    fetchWeather();
 
-    // Laad laatste handmatige locatie als die er is; GPS overschrijft indien toegestaan.
-    const lastLoc = loadLastLocation();
-    if (lastLoc) {
-        state.lat = lastLoc.lat;
-        state.lon = lastLoc.lon;
-        state.city = lastLoc.city;
-        if (els.cityName) els.cityName.innerText = lastLoc.city;
-        if (DEBUG) { state._debug.geoSource = 'localStorage'; renderDebug(); }
+    window.addEventListener('popstate', () => {
+        loadLocationFromUrl().then(ok => { if (ok) fetchWeather(); });
+    });
+
+    const urlOk = await loadLocationFromUrl();
+    if (urlOk) {
         fetchWeather();
+    } else {
+        fetchWeather();
+
+        // Laad laatste handmatige locatie als die er is; GPS overschrijft indien toegestaan.
+        const lastLoc = loadLastLocation();
+        if (lastLoc) {
+            state.lat = lastLoc.lat;
+            state.lon = lastLoc.lon;
+            state.city = lastLoc.city;
+            if (els.cityName) els.cityName.innerText = lastLoc.city;
+            if (DEBUG) { state._debug.geoSource = 'localStorage'; renderDebug(); }
+            fetchWeather();
+        }
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    state.lat = pos.coords.latitude;
+                    state.lon = pos.coords.longitude;
+                    if (DEBUG) { state._debug.geoSource = 'GPS ✓'; renderDebug(); }
+                    fetchWeather();
+                    updateBuienradar();
+                    reverseGeocode(state.lat, state.lon);
+                    onLocationGranted();
+                },
+                () => {
+                    if (DEBUG) { state._debug.geoSource = 'default (geen toestemming)'; renderDebug(); }
+                }
+            );
+        } else {
+            if (DEBUG) { state._debug.geoSource = 'default (geen geo-API)'; renderDebug(); }
+        }
     }
 
     if (DEBUG) renderDebug();
-
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                state.lat = pos.coords.latitude;
-                state.lon = pos.coords.longitude;
-                if (DEBUG) { state._debug.geoSource = 'GPS ✓'; renderDebug(); }
-                fetchWeather();
-                updateBuienradar();
-                reverseGeocode(state.lat, state.lon);
-                onLocationGranted();
-            },
-            () => {
-                if (DEBUG) { state._debug.geoSource = 'default (geen toestemming)'; renderDebug(); }
-            }
-        );
-    } else {
-        if (DEBUG) { state._debug.geoSource = 'default (geen geo-API)'; renderDebug(); }
-    }
 
     const debouncedSuggest = debounce(async (query) => {
         const results = await fetchSuggestions(query);
@@ -836,10 +917,12 @@ async function reverseGeocode(lat, lon) {
         const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
         const data = await res.json();
         state.city = data.address.city || data.address.town || data.address.village || t('geocode_here');
+        const countryCode = (data.address.country_code || '').toUpperCase();
         els.cityName.innerText = state.city;
         updateBuienradar();
         saveLastLocation();
         saveRecentLocation({ lat: state.lat, lon: state.lon, city: state.city });
+        updateUrlForLocation(state.city, countryCode);
     } catch (err) {
         els.cityName.innerText = t('geocode_unknown');
     }
