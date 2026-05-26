@@ -55,7 +55,7 @@ function extractText(html) {
     return blocks.join('\n\n');
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
     const { code } = req.query;
     if (!code || !/^DW[A-Z]{2}$/.test(code)) {
         return res.status(400).json({ error: 'invalid code' });
