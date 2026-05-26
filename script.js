@@ -2277,9 +2277,14 @@ function _renderUVChart(hourly, daily) {
     const uvIndex = hourly?.uv_index ?? [];
 
     const today = locationISO().substring(0, 10);
-    // Try today first; if not found try the first available date
-    let todayStart = hourly.time.findIndex(t => t.startsWith(today));
-    if (todayStart === -1) todayStart = 0;
+
+    // Build timestamp → index lookup so we can find any hour regardless of where the array starts
+    const timeToIdx = {};
+    hourly.time.forEach((t, i) => { timeToIdx[t.substring(0, 13)] = i; });
+
+    function hourIdx(h) {
+        return timeToIdx[`${today}T${String(h).padStart(2, '0')}`] ?? -1;
+    }
 
     // X-axis window: 1h before sunrise → 1h after sunset, min 12h
     let startHour = 5, endHour = 21;
@@ -2297,20 +2302,20 @@ function _renderUVChart(hourly, daily) {
         }
     }
 
-    // Build 15-min labels
+    // Build 15-min labels (only for hours present in data)
     const labels = [];
     for (let h = startHour; h <= endHour; h++) {
-        if (todayStart + h >= hourly.time.length) break;
+        if (hourIdx(h) === -1) continue;
         for (let q = 0; q < 4; q++) {
             labels.push(`${String(h).padStart(2, '0')}:${String(q * 15).padStart(2, '0')}`);
         }
     }
 
-    // Open-Meteo fallback: hourly value repeated over 4 quarters
+    // Open-Meteo / MET Norway predicted: hourly value repeated over 4 quarters
     const omPredicted = [];
     for (let h = startHour; h <= endHour; h++) {
-        const idx = todayStart + h;
-        if (idx >= hourly.time.length) break;
+        const idx = hourIdx(h);
+        if (idx === -1) continue;
         const uvVal = uvIndex[idx] ?? 0;
         for (let q = 0; q < 4; q++) omPredicted.push(uvVal);
     }
@@ -2323,9 +2328,10 @@ function _renderUVChart(hourly, daily) {
     const levelEl   = document.getElementById('uv-level');
     const tipEl     = document.getElementById('uv-tip');
 
-    // Initial UI from Open-Meteo
+    // Initial UI
     const maxUVom = Math.max(...omPredicted);
-    const currentUVValue = uvIndex[todayStart + currentHour] ?? 0;
+    const curIdx = hourIdx(currentHour);
+    const currentUVValue = curIdx !== -1 ? (uvIndex[curIdx] ?? 0) : 0;
     const uvInfoCur = getUVLevel(currentUVValue);
     if (currentEl) currentEl.innerText = currentUVValue.toFixed(1);
     if (els.heroUV) els.heroUV.innerText = currentUVValue.toFixed(1);
@@ -2349,6 +2355,7 @@ function _renderUVChart(hourly, daily) {
         const sliceExpected = [];
         const sliceMeasured = [];
         for (let h = startHour; h <= endHour; h++) {
+            if (hourIdx(h) === -1) continue;
             for (let q = 0; q < 4; q++) {
                 sliceExpected.push(rivmExpected[h * 4 + q] ?? null);
                 sliceMeasured.push(rivmMeasured[h * 4 + q] ?? null);
