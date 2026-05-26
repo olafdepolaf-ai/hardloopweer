@@ -976,6 +976,7 @@ function updateUI(data) {
         state._debug.wind = bft;
         state._debug.dewPoint = Math.round(dp);
         state._debug.weatherCode = current.weather_code;
+        state._debug.countryMode = isInGermany() ? 'DE' : isInNetherlands() ? 'NL' : 'other';
         renderDebug();
     }
     fetchWeatherAlerts().then(renderAlerts);
@@ -2166,62 +2167,69 @@ let _rvTimer = null;
 let _rvPaused = false;
 
 function updateRainViewerMap() {
-    if (typeof L === 'undefined') return;
+    if (typeof L === 'undefined') {
+        console.warn('Leaflet niet geladen');
+        return;
+    }
     const mapEl = document.getElementById('rainviewer-map');
     if (!mapEl) return;
 
-    if (!_rvMap) {
-        _rvMap = L.map('rainviewer-map', { zoomControl: true, scrollWheelZoom: false });
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap',
-            maxZoom: 18,
-        }).addTo(_rvMap);
+    // Wrap in rAF so the browser has re-laid out the (just un-hidden) section
+    // before Leaflet measures the container.
+    requestAnimationFrame(() => {
+        if (!_rvMap) {
+            _rvMap = L.map('rainviewer-map', { zoomControl: true, scrollWheelZoom: false });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 18,
+            }).addTo(_rvMap);
 
-        const playBtn = document.getElementById('rainviewer-play');
-        if (playBtn) {
-            playBtn.addEventListener('click', () => {
-                _rvPaused = !_rvPaused;
-                playBtn.innerHTML = _rvPaused
-                    ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
-                    : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-            });
+            const playBtn = document.getElementById('rainviewer-play');
+            if (playBtn) {
+                playBtn.addEventListener('click', () => {
+                    _rvPaused = !_rvPaused;
+                    playBtn.innerHTML = _rvPaused
+                        ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
+                        : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+                });
+            }
         }
-    }
 
-    _rvMap.setView([state.lat, state.lon], 8);
-    requestAnimationFrame(() => _rvMap.invalidateSize());
+        _rvMap.setView([state.lat, state.lon], 8);
+        _rvMap.invalidateSize();
 
-    fetch('https://api.rainviewer.com/public/weather-maps.json')
-        .then(r => r.json())
-        .then(data => {
-            const host = data.host;
-            const past = data.radar?.past || [];
-            const nowcast = data.radar?.nowcast || [];
-            _rvFrames = [...past, ...nowcast];
-            if (!_rvFrames.length) return;
+        fetch('https://api.rainviewer.com/public/weather-maps.json')
+            .then(r => r.json())
+            .then(data => {
+                const host = data.host;
+                const past = data.radar?.past || [];
+                const nowcast = data.radar?.nowcast || [];
+                _rvFrames = [...past, ...nowcast];
+                if (!_rvFrames.length) return;
 
-            _rvLayers.forEach(l => _rvMap.removeLayer(l));
-            _rvLayers = _rvFrames.map(frame =>
-                L.tileLayer(`${host}${frame.path}/512/{z}/{x}/{y}/4/1_1.png`, {
-                    opacity: 0,
-                    tileSize: 512,
-                    zoomOffset: -1,
-                    maxZoom: 18,
-                    attribution: 'Weather data © RainViewer',
-                }).addTo(_rvMap)
-            );
+                _rvLayers.forEach(l => _rvMap.removeLayer(l));
+                _rvLayers = _rvFrames.map(frame =>
+                    L.tileLayer(`${host}${frame.path}/512/{z}/{x}/{y}/2/1_1.png`, {
+                        opacity: 0,
+                        tileSize: 512,
+                        zoomOffset: -1,
+                        maxZoom: 18,
+                        attribution: 'Weather data © RainViewer',
+                    }).addTo(_rvMap)
+                );
 
-            clearInterval(_rvTimer);
-            _rvIdx = _rvFrames.length - 1;
-            _rvShowFrame(_rvIdx);
-
-            _rvTimer = setInterval(() => {
-                if (_rvPaused) return;
-                _rvIdx = (_rvIdx + 1) % _rvFrames.length;
+                clearInterval(_rvTimer);
+                _rvIdx = _rvFrames.length - 1;
                 _rvShowFrame(_rvIdx);
-            }, 500);
-        })
-        .catch(e => console.warn('RainViewer laden mislukt:', e));
+
+                _rvTimer = setInterval(() => {
+                    if (_rvPaused) return;
+                    _rvIdx = (_rvIdx + 1) % _rvFrames.length;
+                    _rvShowFrame(_rvIdx);
+                }, 500);
+            })
+            .catch(e => console.warn('RainViewer laden mislukt:', e));
+    });
 }
 
 function _rvShowFrame(idx) {
@@ -2282,26 +2290,56 @@ async function fetchWeatherReportDE() {
     }
 
     try {
-        const dirRes = await fetch('https://opendata.dwd.de/weather/text_forecasts/txt/');
-        if (!dirRes.ok) return;
-        const html = await dirRes.text();
+        let text = null;
 
-        // Match: ber01-VHDL13_{CODE}_{ts1}[-_COR]-{ts2}-dsw--0-ia5
-        const pat = new RegExp(
-            `href="(ber01-VHDL13_${code}_[0-9]+(?:_COR)?-([0-9]{10})-dsw--0-ia5)"`, 'g'
-        );
-        const matches = [...html.matchAll(pat)];
-        if (!matches.length) return;
+        // Primair: directory listing parsen voor meest recente bestand
+        try {
+            const dirRes = await fetch('https://opendata.dwd.de/weather/text_forecasts/txt/');
+            if (dirRes.ok) {
+                const html = await dirRes.text();
+                const pat = new RegExp(
+                    `href="(ber01-VHDL13_${code}_[0-9]+(?:_COR)?-([0-9]{10})-dsw--0-ia5)"`, 'g'
+                );
+                const matches = [...html.matchAll(pat)];
+                if (matches.length) {
+                    matches.sort((a, b) => b[2].localeCompare(a[2]));
+                    const file = matches[0][1];
+                    const fileRes = await fetch(
+                        `https://opendata.dwd.de/weather/text_forecasts/txt/${file}`
+                    );
+                    if (fileRes.ok) text = await fileRes.text();
+                }
+            }
+        } catch { /* CORS of netwerk — probeer directe URL */ }
 
-        matches.sort((a, b) => b[2].localeCompare(a[2]));
-        const file = matches[0][1];
+        // Fallback: bouw URL direct op basis van huidige UTC-datum/tijd
+        if (!text) {
+            const now = new Date();
+            const yy = String(now.getUTCFullYear()).slice(-2);
+            const mo = String(now.getUTCMonth() + 1).padStart(2, '0');
+            // DWD VHDL-berichten worden uitgegeven om 08:00 UTC (dagelijks)
+            // Probeer vandaag 08:00, gisteren 08:00
+            const candidates = [
+                { d: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 8, 0)) },
+                { d: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1, 8, 0)) },
+            ];
+            for (const { d } of candidates) {
+                if (text) break;
+                const dd = String(d.getUTCDate()).padStart(2, '0');
+                const hh = String(d.getUTCHours()).padStart(2, '0');
+                const cyy = String(d.getUTCFullYear()).slice(-2);
+                const cmo = String(d.getUTCMonth() + 1).padStart(2, '0');
+                const ts1 = `${dd}${hh}00`;
+                const ts2 = `${cyy}${cmo}${dd}${hh}00`;
+                const url = `https://opendata.dwd.de/weather/text_forecasts/txt/ber01-VHDL13_${code}_${ts1}-${ts2}-dsw--0-ia5`;
+                try {
+                    const r = await fetch(url);
+                    if (r.ok) text = await r.text();
+                } catch { /* probeer volgende */ }
+            }
+        }
 
-        const fileRes = await fetch(
-            `https://opendata.dwd.de/weather/text_forecasts/txt/${file}`
-        );
-        if (!fileRes.ok) return;
-        const text = await fileRes.text();
-
+        if (!text) return;
         storageSet(cacheKey, text);
         storageSet(cacheTsKey, String(Date.now()));
         await _renderDWDReport(text, bodyEl, card);
