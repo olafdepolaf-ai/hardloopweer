@@ -183,6 +183,7 @@ let state = {
     _debug: {
         geoSource: 'default',
         uvSource: 'open-meteo',
+        weatherSource: 'open-meteo',
         rdX: null, rdY: null, wmsI: null, wmsJ: null,
         rivmStatus: '–',
         temp: null, feelsLike: null, wind: null, dewPoint: null,
@@ -930,6 +931,99 @@ async function reverseGeocode(lat, lon) {
     }
 }
 
+function symbolToWMO(symbol) {
+    if (!symbol) return 3;
+    const s = symbol.replace(/_(day|night|polartwilight)$/, '');
+    const map = {
+        clearsky: 0, fair: 1, partlycloudy: 2, cloudy: 3,
+        fog: 45,
+        lightrain: 61, lightrainshowers: 61,
+        rain: 63, rainshowers: 63,
+        heavyrain: 65, heavyrainshowers: 65,
+        lightsleet: 68, lightsleetshowers: 68, sleet: 68, sleetshowers: 68,
+        heavysleet: 68, heavysleetshowers: 68,
+        lightsnow: 71, lightsnowshowers: 71,
+        snow: 73, snowshowers: 73,
+        heavysnow: 75, heavysnowshowers: 75,
+        thunderstorm: 95, rainandthunder: 95, lightrainandthunder: 95,
+        heavyrainandthunder: 99, sleetandthunder: 95, snowandthunder: 95,
+        lightrainshowersandthunder: 95, heavyrainshowersandthunder: 99,
+        lightsleetshowersandthunder: 95, heavysleetshowersandthunder: 99,
+        lightsnowshowersandthunder: 95, heavysnowshowersandthunder: 99,
+    };
+    return map[s] ?? 3;
+}
+
+function calcApparentTemp(tempC, windMps, humidity) {
+    const windKmh = (windMps ?? 0) * 3.6;
+    if (tempC <= 10 && windKmh > 4.8) {
+        const v = windKmh ** 0.16;
+        return Math.round(13.12 + 0.6215 * tempC - 11.37 * v + 0.3965 * tempC * v);
+    }
+    if (tempC >= 27 && (humidity ?? 0) >= 40) {
+        const T = tempC * 9 / 5 + 32;
+        const RH = humidity;
+        const HI = -42.379 + 2.04901523 * T + 10.14333127 * RH - 0.22475541 * T * RH
+            - 0.00683783 * T * T - 0.05481717 * RH * RH + 0.00122874 * T * T * RH
+            + 0.00085282 * T * RH * RH - 0.00000199 * T * T * RH * RH;
+        return Math.round((HI - 32) * 5 / 9);
+    }
+    return tempC;
+}
+
+function normalizeMETNorway(metData) {
+    const series = metData.properties.timeseries;
+    const offsetSec = state.utcOffsetSeconds;
+
+    function toLocalISO(utcStr) {
+        const ms = new Date(utcStr).getTime() + offsetSec * 1000;
+        return new Date(ms).toISOString().substring(0, 16);
+    }
+
+    // Find timeseries entry closest to now
+    const nowMs = Date.now();
+    let curIdx = 0;
+    let minDiff = Infinity;
+    series.forEach((s, i) => {
+        const diff = Math.abs(new Date(s.time).getTime() - nowMs);
+        if (diff < minDiff) { minDiff = diff; curIdx = i; }
+    });
+
+    const cur = series[curIdx];
+    const curDetails = cur.data.instant.details;
+    const curSymbol = cur.data.next_1_hours?.summary?.symbol_code
+        ?? cur.data.next_6_hours?.summary?.symbol_code ?? 'cloudy';
+    const isDay = curSymbol.includes('_day') ? 1 : 0;
+
+    // Build hourly arrays (up to 48 entries with next_1_hours data)
+    const hourSeries = series.filter(s => s.data.next_1_hours).slice(0, 48);
+
+    const hourly = {
+        time: hourSeries.map(s => toLocalISO(s.time)),
+        temperature_2m: hourSeries.map(s => s.data.instant.details.air_temperature ?? null),
+        weather_code: hourSeries.map(s => symbolToWMO(s.data.next_1_hours?.summary?.symbol_code)),
+        dew_point_2m: hourSeries.map(s => s.data.instant.details.dew_point_temperature ?? null),
+        precipitation: hourSeries.map(s => s.data.next_1_hours?.details?.precipitation_amount ?? 0),
+        uv_index: hourSeries.map(s => s.data.instant.details.ultraviolet_index_clear_sky ?? 0),
+        wind_speed_10m: hourSeries.map(s => (s.data.instant.details.wind_speed ?? 0) * 3.6),
+        wind_gusts_10m: hourSeries.map(s => (s.data.instant.details.wind_speed_of_gust ?? s.data.instant.details.wind_speed ?? 0) * 3.6),
+    };
+
+    return {
+        current: {
+            temperature_2m: curDetails.air_temperature,
+            apparent_temperature: calcApparentTemp(curDetails.air_temperature, curDetails.wind_speed, curDetails.relative_humidity),
+            is_day: isDay,
+            weather_code: symbolToWMO(curSymbol),
+            wind_speed_10m: (curDetails.wind_speed ?? 0) * 3.6,
+            wind_direction_10m: curDetails.wind_from_direction ?? 0,
+        },
+        hourly,
+        minutely_15: null,
+        daily: { sunrise: [], sunset: [] },
+    };
+}
+
 async function fetchWeather() {
     const requestId = ++state.weatherRequestId;
     const requestLocation = { lat: state.lat, lon: state.lon, city: state.city };
@@ -944,19 +1038,40 @@ async function fetchWeather() {
         forecast_days: 2
     });
 
+    let data;
+    let source = 'open-meteo';
+
     try {
         const res = await fetch(`${CONFIG.API_URL}?${params.toString()}`);
-        const data = await res.json();
-        if (requestId < state.renderedWeatherRequestId) return;
-        state.renderedWeatherRequestId = requestId;
-        state.lat = requestLocation.lat;
-        state.lon = requestLocation.lon;
-        state.city = requestLocation.city;
-        if (els.cityName) els.cityName.innerText = requestLocation.city;
-        updateUI(data);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        data = await res.json();
     } catch (err) {
-        console.error("Weer ophalen mislukt:", err);
+        console.warn('Open-Meteo mislukt, fallback naar MET Norway:', err.message);
+        source = 'met-norway';
+        try {
+            const metRes = await fetch(
+                `https://api.met.no/weatherapi/locationforecast/2.0/complete?lat=${requestLocation.lat.toFixed(4)}&lon=${requestLocation.lon.toFixed(4)}`,
+                { headers: { 'User-Agent': 'hardloopweer.olaflemmers.nl/1.0 olaflemmers@gmail.com' } }
+            );
+            if (!metRes.ok) throw new Error(`MET Norway HTTP ${metRes.status}`);
+            const metData = await metRes.json();
+            data = normalizeMETNorway(metData);
+        } catch (metErr) {
+            console.error('Beide weer-APIs mislukt:', metErr);
+            return;
+        }
     }
+
+    if (requestId < state.renderedWeatherRequestId) return;
+    state.renderedWeatherRequestId = requestId;
+    state.lat = requestLocation.lat;
+    state.lon = requestLocation.lon;
+    state.city = requestLocation.city;
+    if (els.cityName) els.cityName.innerText = requestLocation.city;
+    if (data.utc_offset_seconds !== undefined) state.utcOffsetSeconds = data.utc_offset_seconds;
+    if (data.timezone) state.timezone = data.timezone;
+    if (DEBUG) { state._debug.weatherSource = source; }
+    updateUI(data);
 }
 
 function getWindDotColor(bft) {
@@ -991,10 +1106,6 @@ function getBeaufort(kmh) {
 
 function updateUI(data) {
     const current = data.current;
-
-    // Store location timezone from API so time calculations use the searched city's local time
-    if (data.utc_offset_seconds !== undefined) state.utcOffsetSeconds = data.utc_offset_seconds;
-    if (data.timezone) state.timezone = data.timezone;
 
     const tempEl = els.currentTemp;
     const tempVal = Math.round(current.temperature_2m);
@@ -1861,7 +1972,11 @@ function renderDebug() {
     const el = document.getElementById('debug-panel');
     if (!el) return;
     const d = state._debug;
+    const weatherSourceLabel = d.weatherSource === 'met-norway'
+        ? '<span style="color:#e67e22;font-weight:bold">⚠ MET Norway (fallback)</span>'
+        : 'Open-Meteo';
     el.innerHTML = [
+        `<b>Weer-API</b>: ${weatherSourceLabel}`,
         `<b>Geo</b>: ${d.geoSource} | ${state.lat.toFixed(5)}°N ${state.lon.toFixed(5)}°E | ${state.city}`,
         `<b>RD New</b>: x=${d.rdX ?? '–'} y=${d.rdY ?? '–'} &nbsp; <b>WMS I/J</b>: ${d.wmsI ?? '–'} / ${d.wmsJ ?? '–'}`,
         `<b>RIVM</b>: ${d.rivmStatus} &nbsp; <b>UV model</b>: <b>${d.uvSource}</b>`,

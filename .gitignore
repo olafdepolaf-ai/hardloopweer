@@ -13,3 +13,7 @@
 
 # Node (voor het geval er ooit een build-stap komt)
 node_modules/
+
+# Playwright test output (screenshots, snapshots, logs)
+playwright-tests/
+.playwright-mcp/
