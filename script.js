@@ -71,10 +71,92 @@ const CONFIG = {
 };
 
 const URL_COUNTRIES = {
+    // Dutch slugs voor de primaire markt
     'nederland': 'NL',
     'duitsland': 'DE',
+    'belgie': 'BE',
+    // Engelse slugs voor de rest
+    'united-kingdom': 'GB',
+    'france': 'FR',
+    'spain': 'ES',
+    'italy': 'IT',
+    'portugal': 'PT',
+    'austria': 'AT',
+    'switzerland': 'CH',
+    'poland': 'PL',
+    'denmark': 'DK',
+    'sweden': 'SE',
+    'norway': 'NO',
+    'finland': 'FI',
+    'czech-republic': 'CZ',
+    'slovakia': 'SK',
+    'hungary': 'HU',
+    'romania': 'RO',
+    'bulgaria': 'BG',
+    'croatia': 'HR',
+    'slovenia': 'SI',
+    'serbia': 'RS',
+    'greece': 'GR',
+    'turkey': 'TR',
+    'ireland': 'IE',
+    'luxembourg': 'LU',
+    'lithuania': 'LT',
+    'latvia': 'LV',
+    'estonia': 'EE',
+    'iceland': 'IS',
+    'malta': 'MT',
+    'cyprus': 'CY',
+    'ukraine': 'UA',
+    'russia': 'RU',
+    'united-states': 'US',
+    'canada': 'CA',
+    'mexico': 'MX',
+    'brazil': 'BR',
+    'argentina': 'AR',
+    'chile': 'CL',
+    'colombia': 'CO',
+    'peru': 'PE',
+    'australia': 'AU',
+    'new-zealand': 'NZ',
+    'south-africa': 'ZA',
+    'morocco': 'MA',
+    'egypt': 'EG',
+    'kenya': 'KE',
+    'nigeria': 'NG',
+    'ghana': 'GH',
+    'ethiopia': 'ET',
+    'tanzania': 'TZ',
+    'algeria': 'DZ',
+    'tunisia': 'TN',
+    'japan': 'JP',
+    'china': 'CN',
+    'south-korea': 'KR',
+    'taiwan': 'TW',
+    'hong-kong': 'HK',
+    'india': 'IN',
+    'pakistan': 'PK',
+    'bangladesh': 'BD',
+    'sri-lanka': 'LK',
+    'nepal': 'NP',
+    'indonesia': 'ID',
+    'malaysia': 'MY',
+    'thailand': 'TH',
+    'vietnam': 'VN',
+    'philippines': 'PH',
+    'singapore': 'SG',
+    'uae': 'AE',
+    'saudi-arabia': 'SA',
+    'israel': 'IL',
+    'georgia': 'GE',
+    'armenia': 'AM',
+    'azerbaijan': 'AZ',
+    'kazakhstan': 'KZ',
 };
-const URL_COUNTRY_SLUGS = Object.fromEntries(Object.entries(URL_COUNTRIES).map(([k, v]) => [v, k]));
+// Canonical slug per country code (eerste definitie wint bij duplicaten)
+const URL_COUNTRY_SLUGS = {};
+for (const [slug, code] of Object.entries(URL_COUNTRIES)) {
+    if (!(code in URL_COUNTRY_SLUGS)) URL_COUNTRY_SLUGS[code] = slug;
+}
 
 const JSONBIN_URL = 'https://api.jsonbin.io/v3/b/6a11e4176610dd3ae893718d';
 const JSONBIN_KEY = '$2a$10$fZv7/kP647Xa2MVZtkuHWurVi3tkS10v0N/NN8gBCwiZy9Wft0cQ.';
@@ -226,12 +308,24 @@ function toUrlSlug(str) {
 }
 
 function updateUrlForLocation(city, countryCode) {
-    const countrySlug = URL_COUNTRY_SLUGS[countryCode?.toUpperCase()];
-    if (!countrySlug) return;
+    const code = countryCode?.toUpperCase();
+    const countrySlug = URL_COUNTRY_SLUGS[code];
     const citySlug = toUrlSlug(city);
     const existingLang = new URLSearchParams(window.location.search).get('lang');
     const langParam = existingLang ? `?lang=${existingLang}` : (state.lang !== 'nl' ? `?lang=${state.lang}` : '');
-    history.pushState({ city, countryCode }, '', `/${countrySlug}/${citySlug}${langParam}`);
+
+    if (countrySlug) {
+        history.pushState({ city, countryCode }, '', `/${countrySlug}/${citySlug}${langParam}`);
+    } else {
+        // Fallback voor landen zonder slug
+        const params = new URLSearchParams();
+        params.set('city', city);
+        params.set('lat', state.lat.toFixed(4));
+        params.set('lon', state.lon.toFixed(4));
+        if (langParam) params.set('lang', state.lang !== 'nl' ? state.lang : '');
+        const paramStr = params.toString().replace(/&?lang=$/, '');
+        history.pushState({ city, countryCode }, '', `/?${paramStr}`);
+    }
 }
 
 function showUrlFallbackMessage(type, city) {
@@ -248,6 +342,25 @@ function showUrlFallbackMessage(type, city) {
 async function loadLocationFromUrl() {
     const path = window.location.pathname.replace(/\/$/, '');
     const parts = path.split('/').filter(Boolean);
+    const params = new URLSearchParams(window.location.search);
+
+    // Fallback-modus: /?city=London&lat=51.5074&lon=-0.1278
+    if (parts.length === 0 && params.has('city') && params.has('lat') && params.has('lon')) {
+        const lat = parseFloat(params.get('lat'));
+        const lon = parseFloat(params.get('lon'));
+        const city = params.get('city');
+        if (!isNaN(lat) && !isNaN(lon) && city) {
+            state.lat = lat;
+            state.lon = lon;
+            state.city = city;
+            if (els.cityName) els.cityName.innerText = city;
+            if (els.citySearch) els.citySearch.value = city;
+            if (DEBUG) { state._debug.geoSource = `URL ?city=${city}`; renderDebug(); }
+            return true;
+        }
+        return false;
+    }
+
     if (parts.length < 2) return false;
 
     const countryCode = URL_COUNTRIES[parts[0]];
