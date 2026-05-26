@@ -380,6 +380,8 @@ async function loadLocationFromUrl() {
         state.lat = r.latitude;
         state.lon = r.longitude;
         state.city = r.name;
+        if (r.timezone) state.timezone = r.timezone;
+        if (r.utc_offset_seconds !== undefined) state.utcOffsetSeconds = r.utc_offset_seconds;
         if (els.cityName) els.cityName.innerText = r.name;
         if (els.citySearch) els.citySearch.value = r.name;
         if (DEBUG) { state._debug.geoSource = `URL /${parts[0]}/${parts[1]}`; renderDebug(); }
@@ -722,6 +724,8 @@ async function init() {
 
     const urlOk = await loadLocationFromUrl();
     if (urlOk) {
+        els.searchContainer?.classList.add('collapsed');
+        els.searchToggle?.classList.remove('hidden');
         fetchWeather();
     } else {
         fetchWeather();
@@ -1009,6 +1013,9 @@ async function searchCity(query) {
             state.lat = loc.latitude;
             state.lon = loc.longitude;
             state.city = loc.name;
+            if (loc.timezone) state.timezone = loc.timezone;
+            if (loc.utc_offset_seconds !== undefined) state.utcOffsetSeconds = loc.utc_offset_seconds;
+            updateTime();
             els.cityName.innerText = state.city;
             const countryCodeSearch = (loc.country_code || '').toUpperCase();
             saveLastLocation();
@@ -1132,6 +1139,8 @@ function normalizeMETNorway(metData) {
         hourly,
         minutely_15: null,
         daily: { sunrise: [], sunset: [] },
+        timezone: state.timezone,
+        utc_offset_seconds: state.utcOffsetSeconds,
     };
 }
 
@@ -1181,6 +1190,7 @@ async function fetchWeather() {
     if (els.cityName) els.cityName.innerText = requestLocation.city;
     if (data.utc_offset_seconds !== undefined) state.utcOffsetSeconds = data.utc_offset_seconds;
     if (data.timezone) state.timezone = data.timezone;
+    updateTime();
     if (DEBUG) { state._debug.weatherSource = source; }
     updateUI(data);
 }
@@ -1811,7 +1821,7 @@ function renderChart(hourly, minutely15) {
             const ts = minutely15.time[idx];
             const min = ts.substring(14, 16);
             const hour = parseInt(ts.substring(11, 13), 10);
-            const day = new Date(ts).toLocaleDateString(state.lang + '-' + state.lang.toUpperCase(), { weekday: 'short' });
+            const day = new Date(ts + 'Z').toLocaleDateString(state.lang + '-' + state.lang.toUpperCase(), { weekday: 'short', timeZone: 'UTC' });
             labels.push(min === '00' && hour % 4 === 0
                 ? (hour === 0 ? `${day} 0:00` : `${hour}:00`)
                 : '');
@@ -1833,7 +1843,7 @@ function renderChart(hourly, minutely15) {
         for (let i = startIndex; i < startIndex + 12; i++) {
             if (hourly.temperature_2m[i] === undefined) break;
             const hour = parseInt(hourly.time[i].substring(11, 13), 10);
-            const day = new Date(hourly.time[i]).toLocaleDateString(state.lang + '-' + state.lang.toUpperCase(), { weekday: 'short' });
+            const day = new Date(hourly.time[i] + 'Z').toLocaleDateString(state.lang + '-' + state.lang.toUpperCase(), { weekday: 'short', timeZone: 'UTC' });
             labels.push(hour % 4 === 0 ? (hour === 0 ? `${day} 0:00` : `${hour}:00`) : '');
             timestamps.push(hour === 0 ? `${day} 0:00` : `${hour}:00`);
             temps.push(hourly.temperature_2m[i]);
