@@ -2376,55 +2376,9 @@ async function fetchWeatherReportDE() {
     }
 
     try {
-        let text = null;
-
-        // Primair: directory listing parsen voor meest recente bestand
-        try {
-            const dirRes = await fetch('https://opendata.dwd.de/weather/text_forecasts/txt/');
-            if (dirRes.ok) {
-                const html = await dirRes.text();
-                const pat = new RegExp(
-                    `href="(ber01-VHDL13_${code}_[0-9]+(?:_COR)?-([0-9]{10})-dsw--0-ia5)"`, 'g'
-                );
-                const matches = [...html.matchAll(pat)];
-                if (matches.length) {
-                    matches.sort((a, b) => b[2].localeCompare(a[2]));
-                    const file = matches[0][1];
-                    const fileRes = await fetch(
-                        `https://opendata.dwd.de/weather/text_forecasts/txt/${file}`
-                    );
-                    if (fileRes.ok) text = await fileRes.text();
-                }
-            }
-        } catch { /* CORS of netwerk — probeer directe URL */ }
-
-        // Fallback: bouw URL direct op basis van huidige UTC-datum/tijd
-        if (!text) {
-            const now = new Date();
-            const yy = String(now.getUTCFullYear()).slice(-2);
-            const mo = String(now.getUTCMonth() + 1).padStart(2, '0');
-            // DWD VHDL-berichten worden uitgegeven om 08:00 UTC (dagelijks)
-            // Probeer vandaag 08:00, gisteren 08:00
-            const candidates = [
-                { d: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 8, 0)) },
-                { d: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1, 8, 0)) },
-            ];
-            for (const { d } of candidates) {
-                if (text) break;
-                const dd = String(d.getUTCDate()).padStart(2, '0');
-                const hh = String(d.getUTCHours()).padStart(2, '0');
-                const cyy = String(d.getUTCFullYear()).slice(-2);
-                const cmo = String(d.getUTCMonth() + 1).padStart(2, '0');
-                const ts1 = `${dd}${hh}00`;
-                const ts2 = `${cyy}${cmo}${dd}${hh}00`;
-                const url = `https://opendata.dwd.de/weather/text_forecasts/txt/ber01-VHDL13_${code}_${ts1}-${ts2}-dsw--0-ia5`;
-                try {
-                    const r = await fetch(url);
-                    if (r.ok) text = await r.text();
-                } catch { /* probeer volgende */ }
-            }
-        }
-
+        const proxyRes = await fetch(`/api/dwd?code=${code}`);
+        if (!proxyRes.ok) return;
+        const text = await proxyRes.text();
         if (!text) return;
         storageSet(cacheKey, text);
         storageSet(cacheTsKey, String(Date.now()));
