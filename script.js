@@ -1783,7 +1783,8 @@ function renderDebug() {
         `<b>UV huidig</b>: ${d.uvCurrent ?? '–'} | <b>UV max verwacht</b>: ${d.uvMax ?? '–'}`,
         `<b>Temp</b>: ${d.temp ?? '–'}°C | <b>Gevoel</b>: ${d.feelsLike ?? '–'}°C | <b>Wind</b>: ${d.wind ?? '–'} Bft`,
         `<b>Dauw</b>: ${d.dewPoint ?? '–'}°C | <b>WC</b>: ${d.weatherCode ?? '–'}`,
-        `<b>Buienradar regen</b>: ${d.buienradarRain}`
+        `<b>Buienradar regen</b>: ${d.buienradarRain}`,
+        `<b>Country mode</b>: ${d.countryMode ?? '–'} | germany-section: ${document.getElementById('germany-section') ? 'aanwezig' : 'ONTBREEKT in DOM'}`
     ].join('<br>');
 }
 
