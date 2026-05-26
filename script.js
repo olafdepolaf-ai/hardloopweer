@@ -2266,6 +2266,7 @@ function _renderUVChart(hourly, daily) {
                 els.heroUV.title = t('rivm_measured');
             }
             const uvInfoRivm = getUVLevel(curVal);
+            if (els.uvDot) els.uvDot.style.background = uvInfoRivm.color;
             if (levelEl) { levelEl.innerText = uvInfoRivm.label; levelEl.className = `uv-badge ${uvInfoRivm.cls}${uvInfoRivm.cls === 'uv-none' ? ' hidden' : ''}`; }
             if (tipEl) tipEl.innerText = uvInfoRivm.tip;
             if (DEBUG) { state._debug.uvCurrent = curVal.toFixed(1); renderDebug(); }
