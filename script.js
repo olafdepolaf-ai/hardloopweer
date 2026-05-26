@@ -1,4 +1,4 @@
-const WARN = { green: '#22C55E', yellow: '#FACC15', orange: '#F97316', red: '#EF4444', none: '#9E9E9E' };
+const WARN = { green: '#22C55E', yellow: '#FACC15', orange: '#F97316', red: '#EF4444', purple: '#8B5CF6', maroon: '#9B1C1C', none: '#9E9E9E' };
 
 const FEATURE_THEME = 'beter'; // 'default' of 'beter'
 document.documentElement.dataset.theme = FEATURE_THEME;
@@ -2053,10 +2053,10 @@ function getPollutantColor(name, val) {
 function getAQILevel(aqi) {
     if (aqi <= 20) return { label: t('aqi_good'),          color: WARN.green,  cls: 'aqi-good',      tipKey: 'good' };
     if (aqi <= 40) return { label: t('aqi_fair'),          color: WARN.yellow, cls: 'aqi-fair',      tipKey: 'fair' };
-    if (aqi <= 60) return { label: t('aqi_moderate'),      color: WARN.yellow, cls: 'aqi-moderate',  tipKey: 'moderate' };
-    if (aqi <= 80) return { label: t('aqi_poor'),          color: WARN.orange, cls: 'aqi-poor',      tipKey: 'poor' };
-    if (aqi <= 100) return { label: t('aqi_very_poor'),    color: WARN.red,    cls: 'aqi-very-poor', tipKey: 'very_poor' };
-    return               { label: t('aqi_extremely_poor'), color: WARN.red,    cls: 'aqi-extreme',   tipKey: 'extreme' };
+    if (aqi <= 60) return { label: t('aqi_moderate'),      color: WARN.orange, cls: 'aqi-moderate',  tipKey: 'moderate' };
+    if (aqi <= 80) return { label: t('aqi_poor'),          color: WARN.red,    cls: 'aqi-poor',      tipKey: 'poor' };
+    if (aqi <= 100) return { label: t('aqi_very_poor'),    color: WARN.purple, cls: 'aqi-very-poor', tipKey: 'very_poor' };
+    return                { label: t('aqi_extremely_poor'), color: WARN.maroon, cls: 'aqi-extreme',   tipKey: 'extreme' };
 }
 
 function openAQIOverlay() {
@@ -2141,7 +2141,7 @@ async function fetchAQI() {
 }
 
 function getUVLevel(uv) {
-    if (uv < 1)   return { label: t('uv_none'),     cls: 'uv-none',      color: '#9E9E9E', tip: '' };
+    if (uv < 1)   return { label: t('uv_none'),     cls: 'uv-none',      color: WARN.green,  tip: '' };
     if (uv < 2.5) return { label: t('uv_low'),      cls: 'uv-low',       color: WARN.green,  tip: '' };
     if (uv < 4.5) return { label: t('uv_moderate'), cls: 'uv-moderate',  color: WARN.yellow, tip: t('uv_tip_moderate') };
     if (uv < 6.5) return { label: t('uv_high'),     cls: 'uv-high',      color: WARN.orange, tip: t('uv_tip_high') };
