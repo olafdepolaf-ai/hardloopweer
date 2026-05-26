@@ -2403,25 +2403,34 @@ async function fetchWeatherReportDE() {
     }
 }
 
-async function _renderDWDReport(text, bodyEl, card) {
-    // Skip DWD file header (everything before the first blank line after metadata)
-    const cleaned = text.replace(/\r\n/g, '\n');
-    const lines = cleaned.split('\n');
-    const firstBlank = lines.findIndex((l, i) => i > 3 && l.trim() === '');
-    const body = (firstBlank > 0 ? lines.slice(firstBlank + 1) : lines).join('\n').trim();
+function _dwdTextToHtml(text) {
+    return text.split('\n\n').map(block => {
+        const b = block.trim();
+        if (!b) return '';
+        if (b.startsWith('**') && b.endsWith('**')) {
+            return `<strong>${escHtml(b.slice(2, -2))}</strong>`;
+        }
+        return `<p>${escHtml(b)}</p>`;
+    }).join('');
+}
 
-    bodyEl.textContent = body;
+async function _renderDWDReport(text, bodyEl, card) {
+    const displayText = text.trim();
+    bodyEl.innerHTML = _dwdTextToHtml(displayText);
     card.classList.remove('hidden');
 
     if (state.lang !== 'de') {
         try {
-            const preview = body.substring(0, 900);
+            // Vertaal alleen de platte alinea's (geen **koppen**)
+            const plainText = displayText.replace(/\*\*[^*]+\*\*/g, '').replace(/\n\n+/g, ' ').trim().substring(0, 900);
             const res = await fetch(
-                `https://api.mymemory.translated.net/get?q=${encodeURIComponent(preview)}&langpair=de|${state.lang}&de=olaflemmers@gmail.com`
+                `https://api.mymemory.translated.net/get?q=${encodeURIComponent(plainText)}&langpair=de|${state.lang}&de=olaflemmers@gmail.com`
             );
             const json = await res.json();
             const translated = json?.responseData?.translatedText;
-            if (translated && translated.length > 50) bodyEl.textContent = translated;
+            if (translated && translated.length > 50) {
+                bodyEl.innerHTML = `<p>${escHtml(translated)}</p>`;
+            }
         } catch { /* toon Duits als fallback */ }
     }
 }
