@@ -2612,6 +2612,21 @@ async function fetchWeatherReportDE() {
     const cacheTsKey = `hw_dwd_ts_${code}`;
     const TTL = 3 * 3600 * 1000;
 
+    // Toggle setup (eenmalig, ongeacht cache of fetch)
+    const openBtn = document.getElementById('dwd-report-toggle-open');
+    const closeBtn = document.getElementById('dwd-report-toggle');
+    const details = document.getElementById('dwd-report-details');
+    if (openBtn && closeBtn && details) {
+        openBtn.addEventListener('click', () => {
+            details.classList.add('expanded');
+            openBtn.classList.add('hidden');
+        });
+        closeBtn.addEventListener('click', () => {
+            details.classList.remove('expanded');
+            openBtn.classList.remove('hidden');
+        });
+    }
+
     const cached = storageGet(cacheKey);
     const cachedTs = parseInt(storageGet(cacheTsKey) || '0', 10);
     if (cached && Date.now() - cachedTs < TTL) {
@@ -2630,31 +2645,18 @@ async function fetchWeatherReportDE() {
     } catch (e) {
         console.warn('DWD weerbericht mislukt:', e.message);
     }
-
-    // Toggle logic (same as NL weather report)
-    const openBtn = document.getElementById('dwd-report-toggle-open');
-    const closeBtn = document.getElementById('dwd-report-toggle');
-    const details = document.getElementById('dwd-report-details');
-    if (openBtn && closeBtn && details) {
-        openBtn.addEventListener('click', () => {
-            details.classList.add('expanded');
-            openBtn.classList.add('hidden');
-        });
-        closeBtn.addEventListener('click', () => {
-            details.classList.remove('expanded');
-            openBtn.classList.remove('hidden');
-        });
-    }
 }
 
 function _dwdTextToHtml(text) {
     return text.split('\n\n').map(block => {
         const b = block.trim();
         if (!b) return '';
-        if (b.startsWith('**') && b.endsWith('**')) {
-            return `<strong>${escHtml(b.slice(2, -2))}</strong>`;
+        // Plak afgebroken woorden aan elkaar en vervang harde regelafbrekingen door spaties
+        const joined = b.replace(/-\n/g, '').replace(/\n/g, ' ');
+        if (joined.startsWith('**') && joined.endsWith('**')) {
+            return `<strong>${escHtml(joined.slice(2, -2))}</strong>`;
         }
-        return `<p>${escHtml(b)}</p>`;
+        return `<p>${escHtml(joined)}</p>`;
     }).join('');
 }
 
@@ -2662,13 +2664,21 @@ async function _renderDWDReport(text, bodyEl, card) {
     const displayText = text.trim();
     bodyEl.innerHTML = _dwdTextToHtml(displayText);
     card.classList.remove('hidden');
+    document.getElementById('dwd-report-details')?.classList.add('expanded');
+    document.getElementById('dwd-report-toggle-open')?.classList.add('hidden');
 
     if (state.lang !== 'de') {
         try {
-            // Vertaal alleen de platte alinea's (geen **koppen**)
-            const plainText = displayText.replace(/\*\*[^*]+\*\*/g, '').replace(/\n\n+/g, ' ').trim().substring(0, 900);
+            const plainText = displayText
+                .replace(/\*\*[^*]+\*\*/g, '')
+                .split('\n\n')
+                .map(b => b.trim().replace(/-\n/g, '').replace(/\n/g, ' ').trim())
+                .filter(Boolean)
+                .join(' ')
+                .trim()
+                .substring(0, 900);
             const res = await fetch(
-                `https://api.mymemory.translated.net/get?q=${encodeURIComponent(plainText)}&langpair=de|${state.lang}&de=olaflemmers@gmail.com`
+                `https://api.mymemory.translated.net/get?q=${encodeURIComponent(plainText)}&langpair=de|nl&de=olaflemmers@gmail.com`
             );
             const json = await res.json();
             const translated = json?.responseData?.translatedText;
