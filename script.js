@@ -1282,7 +1282,13 @@ async function fetchWeatherReport() {
         // Extract raw Dutch texts
         const rawTitle    = wr.title || '';
         const rawSummary  = decodeHtml(wr.summary || '');
-        const rawBody     = decodeHtml(wr.text || '');
+        const stripPrefix = (text, prefix) => {
+            const t = text.trim(), p = prefix.trim();
+            if (!p || !t.toLowerCase().startsWith(p.toLowerCase())) return t;
+            return t.slice(p.length).replace(/^[\s.:\-–]+/, '').trim();
+        };
+        const rawBodyFull = decodeHtml(wr.text || '');
+        const rawBody     = stripPrefix(stripPrefix(rawBodyFull, rawTitle), rawSummary);
         const rawShort    = shortterm?.forecast || '';
         const rawLong     = longterm?.forecast || '';
         const timeStr     = formatPublishedTime(wr.published || '');
