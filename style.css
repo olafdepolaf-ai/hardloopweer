@@ -1425,6 +1425,91 @@ i[data-lucide] {
     }
 }
 
+/* ── Germany Mode ─────────────────────────────────────── */
+#germany-section {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap, 12px);
+}
+
+.rainviewer-card {
+    padding: 0;
+    overflow: hidden;
+}
+
+.rainviewer-map {
+    width: 100%;
+    height: 320px;
+    background: var(--card-bg, #1a1a2e);
+}
+
+.rainviewer-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 14px;
+}
+
+.rainviewer-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: none;
+    background: var(--card-border, rgba(255,255,255,0.1));
+    color: var(--text-primary, #fff);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.rainviewer-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.rainviewer-time {
+    font-size: 0.82rem;
+    color: var(--text-secondary, rgba(255,255,255,0.6));
+    font-variant-numeric: tabular-nums;
+}
+
+.rainviewer-credit {
+    padding: 6px 14px 10px;
+    font-size: 0.78rem;
+    color: var(--text-secondary, rgba(255,255,255,0.5));
+    margin: 0;
+}
+
+.rainviewer-credit a {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.dwd-report-body {
+    white-space: pre-wrap;
+    font-size: 0.88rem;
+    line-height: 1.6;
+}
+
+.dwd-report-credit {
+    margin-top: 10px;
+    font-size: 0.78rem;
+    color: var(--text-secondary, rgba(255,255,255,0.5));
+}
+
+.dwd-report-credit a {
+    color: inherit;
+    text-decoration: underline;
+}
+
+.aqi-source-note {
+    font-size: 0.78rem;
+    color: var(--text-secondary, rgba(255,255,255,0.5));
+    margin: 4px 0 0;
+}
+
 /* ── Debug ────────────────────────────────────────────── */
 .debug-panel {
     font-size: 10px;

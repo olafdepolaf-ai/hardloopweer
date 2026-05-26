@@ -205,6 +205,10 @@ function isInNetherlands() {
     return state.lat >= 50.5 && state.lat <= 53.7 && state.lon >= 3.3 && state.lon <= 7.3;
 }
 
+function isInGermany() {
+    return state.lat >= 47.2 && state.lat <= 55.1 && state.lon >= 5.8 && state.lon <= 15.1;
+}
+
 // ---- Weather alerts ----
 
 const ALERT_ICONS = {
@@ -932,14 +936,17 @@ function updateUI(data) {
         els.windArrow.style.transform = `rotate(${current.wind_direction_10m}deg)`;
     }
 
-    // Show Buienradar + weather report only when viewing a Dutch location
+    // Show location-specific sections based on country
     const buienradarSection = document.getElementById('buienradar-section');
     if (buienradarSection) {
         buienradarSection.classList.toggle('hidden', !isInNetherlands());
         if (isInNetherlands()) requestAnimationFrame(scaleBuienradar);
     }
     const weatherReportCard = document.getElementById('weather-report-card');
-    if (weatherReportCard && !isInNetherlands()) weatherReportCard.classList.add('hidden');
+    if (weatherReportCard) weatherReportCard.classList.toggle('hidden', !isInNetherlands());
+
+    const germanySection = document.getElementById('germany-section');
+    if (germanySection) germanySection.classList.toggle('hidden', !isInGermany());
 
     state._lastCurrent = current;
 
@@ -972,7 +979,13 @@ function updateUI(data) {
         renderDebug();
     }
     fetchWeatherAlerts().then(renderAlerts);
-    fetchAQI();
+    if (isInGermany()) {
+        fetchAQI_DE();
+        fetchWeatherReportDE();
+        updateRainViewerMap();
+    } else {
+        fetchAQI();
+    }
     if (isInNetherlands()) {
         fetchBuienradarRain();
         fetchWeatherReport();
@@ -2138,5 +2151,328 @@ function drawUVChart(canvas, labels, predicted, measured) {
         plugins: [canvasBgPlugin, uvAreaFillPlugin, crosshairPlugin]
     });
 }
+
+// ============================================================
+// GERMANY MODE
+// ============================================================
+
+// ── Stap 3: RainViewer radar ─────────────────────────────
+
+let _rvMap = null;
+let _rvLayers = [];
+let _rvFrames = [];
+let _rvIdx = 0;
+let _rvTimer = null;
+let _rvPaused = false;
+
+function updateRainViewerMap() {
+    if (typeof L === 'undefined') return;
+    const mapEl = document.getElementById('rainviewer-map');
+    if (!mapEl) return;
+
+    if (!_rvMap) {
+        _rvMap = L.map('rainviewer-map', { zoomControl: true, scrollWheelZoom: false });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap',
+            maxZoom: 18,
+        }).addTo(_rvMap);
+
+        const playBtn = document.getElementById('rainviewer-play');
+        if (playBtn) {
+            playBtn.addEventListener('click', () => {
+                _rvPaused = !_rvPaused;
+                playBtn.innerHTML = _rvPaused
+                    ? '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>'
+                    : '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
+            });
+        }
+    }
+
+    _rvMap.setView([state.lat, state.lon], 8);
+    requestAnimationFrame(() => _rvMap.invalidateSize());
+
+    fetch('https://api.rainviewer.com/public/weather-maps.json')
+        .then(r => r.json())
+        .then(data => {
+            const host = data.host;
+            const past = data.radar?.past || [];
+            const nowcast = data.radar?.nowcast || [];
+            _rvFrames = [...past, ...nowcast];
+            if (!_rvFrames.length) return;
+
+            _rvLayers.forEach(l => _rvMap.removeLayer(l));
+            _rvLayers = _rvFrames.map(frame =>
+                L.tileLayer(`${host}${frame.path}/512/{z}/{x}/{y}/4/1_1.png`, {
+                    opacity: 0,
+                    tileSize: 512,
+                    zoomOffset: -1,
+                    maxZoom: 18,
+                    attribution: 'Weather data © RainViewer',
+                }).addTo(_rvMap)
+            );
+
+            clearInterval(_rvTimer);
+            _rvIdx = _rvFrames.length - 1;
+            _rvShowFrame(_rvIdx);
+
+            _rvTimer = setInterval(() => {
+                if (_rvPaused) return;
+                _rvIdx = (_rvIdx + 1) % _rvFrames.length;
+                _rvShowFrame(_rvIdx);
+            }, 500);
+        })
+        .catch(e => console.warn('RainViewer laden mislukt:', e));
+}
+
+function _rvShowFrame(idx) {
+    _rvLayers.forEach((l, i) => l.setOpacity(i === idx ? 0.65 : 0));
+    const frame = _rvFrames[idx];
+    if (!frame) return;
+    const timeEl = document.getElementById('rainviewer-time');
+    if (timeEl) {
+        const d = new Date(frame.time * 1000);
+        const label = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        // RainViewer: past frames have time <= now, nowcast frames are in the future
+        const isNowcast = frame.time * 1000 > Date.now();
+        timeEl.textContent = isNowcast ? `Nowcast ${label}` : label;
+    }
+}
+
+// ── Stap 4: DWD tekstrapporten ───────────────────────────
+
+const DWD_REGIONS = [
+    { code: 'DWOG', name: 'Berlin',              lat: [52.33, 52.68], lon: [13.09, 13.77] },
+    { code: 'DWHG', name: 'Hamburg',             lat: [53.39, 53.72], lon: [9.72,  10.33] },
+    { code: 'DWPG', name: 'Sachsen',             lat: [50.17, 51.68], lon: [11.87, 15.04] },
+    { code: 'DWEI', name: 'Thüringen',           lat: [50.20, 51.65], lon: [9.92,  12.65] },
+    { code: 'DWEG', name: 'Brandenburg',         lat: [51.36, 53.56], lon: [11.27, 14.77] },
+    { code: 'DWEH', name: 'Sachsen-Anhalt',      lat: [50.94, 53.04], lon: [10.56, 13.19] },
+    { code: 'DWHH', name: 'Schleswig-Holstein',  lat: [53.36, 55.06], lon: [8.01,  11.00] },
+    { code: 'DWLG', name: 'Niedersachsen',       lat: [51.29, 53.89], lon: [6.65,  11.60] },
+    { code: 'DWLH', name: 'Nordrhein-Westfalen', lat: [50.32, 52.53], lon: [5.87,   9.46] },
+    { code: 'DWLI', name: 'Hessen',              lat: [49.40, 51.66], lon: [7.77,  10.24] },
+    { code: 'DWPH', name: 'Rheinland-Pfalz',     lat: [48.97, 50.94], lon: [6.11,   8.51] },
+    { code: 'DWMO', name: 'Bayern',              lat: [47.27, 50.57], lon: [10.00, 13.84] },
+    { code: 'DWMP', name: 'Baden-Württemberg',   lat: [47.53, 49.79], lon: [7.51,  10.50] },
+];
+
+function getDWDCode() {
+    for (const r of DWD_REGIONS) {
+        if (state.lat >= r.lat[0] && state.lat <= r.lat[1] &&
+            state.lon >= r.lon[0] && state.lon <= r.lon[1]) return r.code;
+    }
+    return 'DWSG';
+}
+
+async function fetchWeatherReportDE() {
+    const card = document.getElementById('dwd-report-card');
+    const bodyEl = document.getElementById('dwd-report-body');
+    if (!card || !bodyEl) return;
+
+    const code = getDWDCode();
+    const cacheKey = `hw_dwd_${code}`;
+    const cacheTsKey = `hw_dwd_ts_${code}`;
+    const TTL = 3 * 3600 * 1000;
+
+    const cached = storageGet(cacheKey);
+    const cachedTs = parseInt(storageGet(cacheTsKey) || '0', 10);
+    if (cached && Date.now() - cachedTs < TTL) {
+        await _renderDWDReport(cached, bodyEl, card);
+        return;
+    }
+
+    try {
+        const dirRes = await fetch('https://opendata.dwd.de/weather/text_forecasts/txt/');
+        if (!dirRes.ok) return;
+        const html = await dirRes.text();
+
+        // Match: ber01-VHDL13_{CODE}_{ts1}[-_COR]-{ts2}-dsw--0-ia5
+        const pat = new RegExp(
+            `href="(ber01-VHDL13_${code}_[0-9]+(?:_COR)?-([0-9]{10})-dsw--0-ia5)"`, 'g'
+        );
+        const matches = [...html.matchAll(pat)];
+        if (!matches.length) return;
+
+        matches.sort((a, b) => b[2].localeCompare(a[2]));
+        const file = matches[0][1];
+
+        const fileRes = await fetch(
+            `https://opendata.dwd.de/weather/text_forecasts/txt/${file}`
+        );
+        if (!fileRes.ok) return;
+        const text = await fileRes.text();
+
+        storageSet(cacheKey, text);
+        storageSet(cacheTsKey, String(Date.now()));
+        await _renderDWDReport(text, bodyEl, card);
+    } catch (e) {
+        console.warn('DWD weerbericht mislukt:', e.message);
+    }
+
+    // Toggle logic (same as NL weather report)
+    const openBtn = document.getElementById('dwd-report-toggle-open');
+    const closeBtn = document.getElementById('dwd-report-toggle');
+    const details = document.getElementById('dwd-report-details');
+    if (openBtn && closeBtn && details) {
+        openBtn.addEventListener('click', () => {
+            details.classList.add('expanded');
+            openBtn.classList.add('hidden');
+        });
+        closeBtn.addEventListener('click', () => {
+            details.classList.remove('expanded');
+            openBtn.classList.remove('hidden');
+        });
+    }
+}
+
+async function _renderDWDReport(text, bodyEl, card) {
+    // Skip DWD file header (everything before the first blank line after metadata)
+    const cleaned = text.replace(/\r\n/g, '\n');
+    const lines = cleaned.split('\n');
+    const firstBlank = lines.findIndex((l, i) => i > 3 && l.trim() === '');
+    const body = (firstBlank > 0 ? lines.slice(firstBlank + 1) : lines).join('\n').trim();
+
+    bodyEl.textContent = body;
+    card.classList.remove('hidden');
+
+    if (state.lang !== 'de') {
+        try {
+            const preview = body.substring(0, 900);
+            const res = await fetch(
+                `https://api.mymemory.translated.net/get?q=${encodeURIComponent(preview)}&langpair=de|${state.lang}&de=olaflemmers@gmail.com`
+            );
+            const json = await res.json();
+            const translated = json?.responseData?.translatedText;
+            if (translated && translated.length > 50) bodyEl.textContent = translated;
+        } catch { /* toon Duits als fallback */ }
+    }
+}
+
+// ── Stap 5: UBA luchtkwaliteit ───────────────────────────
+
+const UBA_BASE = 'https://www.umweltbundesamt.de/api/air_data/v2';
+let _ubaStations = null;
+
+async function _getUBAStations() {
+    if (_ubaStations) return _ubaStations;
+    const cacheKey = 'hw_uba_stations';
+    const cacheTsKey = 'hw_uba_stations_ts';
+    const cached = storageGet(cacheKey);
+    const cachedTs = parseInt(storageGet(cacheTsKey) || '0', 10);
+    if (cached && Date.now() - cachedTs < 24 * 3600 * 1000) {
+        _ubaStations = JSON.parse(cached);
+        return _ubaStations;
+    }
+    const res = await fetch(`${UBA_BASE}/stations/json?use=airquality&lang=de`);
+    const data = await res.json();
+    _ubaStations = Object.values(data.stations || {}).map(s => ({
+        id: s[0],
+        name: s[2],
+        city: s[3],
+        lon: parseFloat(s[7]),
+        lat: parseFloat(s[8]),
+    })).filter(s => !isNaN(s.lat) && !isNaN(s.lon));
+    storageSet(cacheKey, JSON.stringify(_ubaStations));
+    storageSet(cacheTsKey, String(Date.now()));
+    return _ubaStations;
+}
+
+async function fetchAQI_DE() {
+    const btn = document.getElementById('aqi-btn');
+    if (!btn) return;
+    try {
+        const stations = await _getUBAStations();
+
+        const nearest = stations.reduce((best, s) => {
+            const d = Math.hypot(s.lat - state.lat, s.lon - state.lon);
+            return d < best.d ? { s, d } : best;
+        }, { s: null, d: Infinity }).s;
+        if (!nearest) return;
+
+        const now = new Date(Date.now() + (state.utcOffsetSeconds || 0) * 1000);
+        const dateStr = now.toISOString().split('T')[0];
+        const hour = Math.max(1, now.getUTCHours());
+
+        const res = await fetch(
+            `${UBA_BASE}/airquality/json?date_from=${dateStr}&time_from=1&date_to=${dateStr}&time_to=${hour}&station=${nearest.id}&lang=de`
+        );
+        const data = await res.json();
+        const stationData = data.data?.[String(nearest.id)];
+        if (!stationData) { fetchAQI(); return; }
+
+        const times = Object.keys(stationData).sort();
+        if (!times.length) { fetchAQI(); return; }
+        const entry = stationData[times[times.length - 1]];
+
+        // entry: [end_time, status, completeness, [comp_id, value, lqi_comp, y], ...]
+        const comps = {};
+        for (let i = 3; i < entry.length; i++) {
+            const c = entry[i];
+            if (Array.isArray(c) && c.length >= 3) comps[c[0]] = { value: c[1], idx: c[2] };
+        }
+
+        // UBA LQI 1–6: max of all component indices
+        const lqi = Math.max(1, ...Object.values(comps).map(c => c.idx || 1));
+        const pm10 = comps[1]?.value ?? null;
+        const o3   = comps[3]?.value ?? null;
+        const no2  = comps[5]?.value ?? null;
+        const pm25 = comps[9]?.value ?? null;
+
+        // Map UBA 1-6 to our 0–100 display scale for getAQILevel()
+        const lqiScale = [0, 10, 30, 55, 75, 95, 150];
+        const aqi100 = lqiScale[Math.min(lqi, 6)];
+        const level = getAQILevel(aqi100);
+
+        const levelTextEl = document.getElementById('aqi-level-text');
+        if (levelTextEl) levelTextEl.textContent = level.label;
+        btn.style.setProperty('--aqi-color', level.color);
+        btn.className = `aqi-metric-btn ${level.cls}`;
+        btn.setAttribute('aria-label', `${t('aqi_label')}: ${level.label}`);
+        btn.classList.remove('hidden');
+
+        const expandBtn = document.getElementById('aqi-expand-btn');
+        if (expandBtn) expandBtn.classList.remove('hidden');
+
+        const dot = (name, val) =>
+            `<span class="aqi-pollutant-dot" style="background:${getPollutantColor(name, val)}"></span>`;
+        const fmt = v => v != null ? v.toFixed(1) : '–';
+        const markerPct = Math.min(Math.max(((lqi - 1) / 5) * 100, 2), 98);
+
+        const aqiHtml = `
+            <div class="aqi-full-panel">
+                <div class="aqi-top-row">
+                    <div class="aqi-number-group">
+                        <span class="aqi-big-number" style="color:${level.color}">${lqi}</span>
+                        <span class="aqi-big-unit">LQI</span>
+                    </div>
+                    <span class="aqi-overlay-level ${level.cls}">${escHtml(level.label)}</span>
+                </div>
+                <div class="aqi-bar-section">
+                    <div class="aqi-bar-track">
+                        <div class="aqi-bar-marker" style="left:${markerPct}%"></div>
+                    </div>
+                    <div class="aqi-bar-scale">
+                        <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+                    </div>
+                </div>
+                <div class="aqi-pollutants-grid">
+                    <div class="aqi-pollutant-card">${dot('pm25', pm25)}<span class="aqi-pollutant-name">PM2.5</span><span class="aqi-pollutant-val">${fmt(pm25)}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
+                    <div class="aqi-pollutant-card">${dot('pm10', pm10)}<span class="aqi-pollutant-name">PM10</span><span class="aqi-pollutant-val">${fmt(pm10)}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
+                    <div class="aqi-pollutant-card">${dot('no2', no2)}<span class="aqi-pollutant-name">NO₂</span><span class="aqi-pollutant-val">${fmt(no2)}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
+                    <div class="aqi-pollutant-card">${dot('o3', o3)}<span class="aqi-pollutant-name">O₃</span><span class="aqi-pollutant-val">${fmt(o3)}</span><span class="aqi-pollutant-unit">µg/m³</span></div>
+                </div>
+                <p class="aqi-source-note">Bron: Umweltbundesamt · Station: ${escHtml(nearest.city || nearest.name)}</p>
+                <p class="aqi-panel-tip">${escHtml(t('aqi_tip_' + level.tipKey))}</p>
+            </div>`;
+        if (els.aqiOverlayBody) els.aqiOverlayBody.innerHTML = aqiHtml;
+        if (els.aqiPanelBody) els.aqiPanelBody.innerHTML = aqiHtml;
+        btn.onclick = () => toggleMetricPanel('aqi');
+    } catch (e) {
+        console.warn('UBA AQI mislukt, fallback naar Open-Meteo:', e.message);
+        fetchAQI();
+    }
+}
+
+// ============================================================
 
 init();

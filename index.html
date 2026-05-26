@@ -32,7 +32,9 @@
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="themes/default.css">
     <link rel="stylesheet" href="themes/beter-theme.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
     <script src="i18n.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -202,6 +204,29 @@
                 <h3 data-i18n="clothing_title">Wat trekken we aan?</h3>
                 <div id="clothing-tip" class="tip-content">
                     <p id="loading-text" data-i18n="loading">Weer ophalen voor advies...</p>
+                </div>
+            </section>
+
+            <section id="germany-section" class="hidden">
+                <div class="card rainviewer-card">
+                    <div id="rainviewer-map" class="rainviewer-map"></div>
+                    <div class="rainviewer-controls">
+                        <button id="rainviewer-play" class="rainviewer-btn" aria-label="Animatie afspelen/pauzeren">
+                            <i data-lucide="pause"></i>
+                        </button>
+                        <span id="rainviewer-time" class="rainviewer-time"></span>
+                    </div>
+                    <p class="rainviewer-credit">Radar: <a href="https://www.rainviewer.com" target="_blank" rel="noopener">RainViewer</a> · Kaart: <a href="https://www.openstreetmap.org" target="_blank" rel="noopener">OpenStreetMap</a></p>
+                </div>
+
+                <div id="dwd-report-card" class="card hidden">
+                    <h3 class="weather-report-title" data-i18n="dwd_report_title">DWD Weerbericht</h3>
+                    <div id="dwd-report-details" class="weather-report-details">
+                        <p id="dwd-report-body" class="weather-report-body dwd-report-body"></p>
+                        <button id="dwd-report-toggle" class="weather-report-toggle">Lees minder</button>
+                    </div>
+                    <button id="dwd-report-toggle-open" class="weather-report-toggle">Lees meer</button>
+                    <p class="dwd-report-credit">Bron: <a href="https://www.dwd.de" target="_blank" rel="noopener">Deutscher Wetterdienst</a></p>
                 </div>
             </section>
 
