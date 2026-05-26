@@ -457,7 +457,7 @@ function selectSuggestion(item) {
     els.citySearch.value = name;
     hideSuggestions();
     saveLastLocation();
-    saveRecentLocation({ lat, lon, city: name });
+    saveRecentLocation({ lat, lon, city: name, countryCode });
     updateUrlForLocation(name, countryCode);
     fetchWeather();
     updateBuienradar();
@@ -519,7 +519,7 @@ function showRecentSuggestions() {
     </li>`;
 
     const recentItems = sorted.map((r, i) =>
-        `<li class="search-suggestion-item is-recent" data-idx="${i}" data-lat="${r.lat}" data-lon="${r.lon}" data-name="${escAttr(r.city)}">
+        `<li class="search-suggestion-item is-recent" data-idx="${i}" data-lat="${r.lat}" data-lon="${r.lon}" data-name="${escAttr(r.city)}" data-country="${escAttr(r.countryCode || '')}">
             <span class="suggestion-name">🕐 ${escHtml(r.city)}</span>
         </li>`
     ).join('');
@@ -898,9 +898,10 @@ async function searchCity(query) {
             state.lon = loc.longitude;
             state.city = loc.name;
             els.cityName.innerText = state.city;
+            const countryCodeSearch = (loc.country_code || '').toUpperCase();
             saveLastLocation();
-            saveRecentLocation({ lat: state.lat, lon: state.lon, city: state.city });
-            updateUrlForLocation(loc.name, (loc.country_code || '').toUpperCase());
+            saveRecentLocation({ lat: state.lat, lon: state.lon, city: state.city, countryCode: countryCodeSearch });
+            updateUrlForLocation(loc.name, countryCodeSearch);
             fetchWeather();
             updateBuienradar();
             if (!els.searchToggle.classList.contains('hidden')) {
@@ -922,7 +923,7 @@ async function reverseGeocode(lat, lon) {
         els.cityName.innerText = state.city;
         updateBuienradar();
         saveLastLocation();
-        saveRecentLocation({ lat: state.lat, lon: state.lon, city: state.city });
+        saveRecentLocation({ lat: state.lat, lon: state.lon, city: state.city, countryCode });
         updateUrlForLocation(state.city, countryCode);
     } catch (err) {
         els.cityName.innerText = t('geocode_unknown');
