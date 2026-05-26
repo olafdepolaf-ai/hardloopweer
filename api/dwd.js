@@ -1,4 +1,4 @@
-const BASE = 'https://www.dwd.de/DE/wetter/warnungen_aktuell/warnlagebericht/';
+const OPENDATA = 'https://opendata.dwd.de/weather/text_forecasts/txt/';
 
 const REGION_PATHS = {
     DWOG: 'berlin_brandenburg/warnlage_bb_node.html',
@@ -16,43 +16,73 @@ const REGION_PATHS = {
     DWMP: 'baden-wuerttemberg/warnlage_baw_node.html',
 };
 
-function extractText(html) {
-    // Zoek de main content sectie — DWD gooit navigatie etc. erbij
-    // Focus op <h2>, <h3> en <p> binnen de artikelinhoud
-    const contentMatch = html.match(/<div[^>]*class="[^"]*c-content[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
-        || html.match(/<main[^>]*>([\s\S]*?)<\/main>/i)
-        || html.match(/<article[^>]*>([\s\S]*?)<\/article>/i);
+async function fetchTextFile(code) {
+    // Server-side: geen CORS-beperking, opendata.dwd.de is direct bereikbaar
 
-    const source = contentMatch ? contentMatch[1] : html;
+    // Stap 1: directory listing ophalen en meest recente bestand kiezen
+    try {
+        const dirRes = await fetch(OPENDATA, { headers: { 'User-Agent': 'hardloopweer/1.0' } });
+        if (dirRes.ok) {
+            const html = await dirRes.text();
+            const pat = new RegExp(
+                `href="(ber01-VHDL13_${code}_[0-9]+(?:_COR)?-([0-9]{10})-dsw--0-ia5)"`, 'g'
+            );
+            const matches = [...html.matchAll(pat)];
+            if (matches.length) {
+                matches.sort((a, b) => b[2].localeCompare(a[2]));
+                const file = matches[0][1];
+                const fileRes = await fetch(OPENDATA + file, { headers: { 'User-Agent': 'hardloopweer/1.0' } });
+                if (fileRes.ok) return fileRes.text();
+            }
+        }
+    } catch { /* val door */ }
 
-    // Verwijder script/style blokken
-    const stripped = source
-        .replace(/<script[\s\S]*?<\/script>/gi, '')
-        .replace(/<style[\s\S]*?<\/style>/gi, '');
-
-    // Extraheer h2, h3 en p teksten
-    const blocks = [];
-    const tagPat = /<(h2|h3|p)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/gi;
-    let match;
-    while ((match = tagPat.exec(stripped)) !== null) {
-        const tag = match[1].toLowerCase();
-        const inner = match[2]
-            .replace(/<[^>]+>/g, ' ')  // strip inner tags
-            .replace(/&amp;/g, '&')
-            .replace(/&lt;/g, '<')
-            .replace(/&gt;/g, '>')
-            .replace(/&nbsp;/g, ' ')
-            .replace(/&#\d+;/g, '')
-            .replace(/&[a-z]+;/g, '')
-            .replace(/\s+/g, ' ')
-            .trim();
-        if (!inner || inner.length < 10) continue;
-        // Skip navigatie-achtige korte labels
-        if (tag === 'p' && inner.length < 20) continue;
-        blocks.push(tag === 'p' ? inner : `**${inner}**`);
+    // Stap 2: directe URL op basis van DWD-uitgavetijd (08:00 UTC)
+    const now = new Date();
+    const candidates = [
+        new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 8, 0)),
+        new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 1, 8, 0)),
+    ];
+    for (const d of candidates) {
+        const dd = String(d.getUTCDate()).padStart(2, '0');
+        const cyy = String(d.getUTCFullYear()).slice(-2);
+        const cmo = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const cdd = String(d.getUTCDate()).padStart(2, '0');
+        const url = `${OPENDATA}ber01-VHDL13_${code}_${dd}0800-${cyy}${cmo}${cdd}0800-dsw--0-ia5`;
+        try {
+            const r = await fetch(url, { headers: { 'User-Agent': 'hardloopweer/1.0' } });
+            if (r.ok) return r.text();
+        } catch { /* probeer volgende */ }
     }
 
-    return blocks.join('\n\n');
+    return null;
+}
+
+async function scrapeWarnlage(code) {
+    const path = REGION_PATHS[code];
+    if (!path) return null;
+    const url = `https://www.dwd.de/DE/wetter/warnungen_aktuell/warnlagebericht/${path}`;
+    const res = await fetch(url, {
+        headers: { 'Accept-Language': 'de', 'User-Agent': 'Mozilla/5.0 (compatible; hardloopweer/1.0)' }
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    // Extraheer <p>-teksten uit de main content
+    const blocks = [];
+    const tagPat = /<(h[23]|p)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/gi;
+    let m;
+    while ((m = tagPat.exec(html)) !== null) {
+        const tag = m[1].toLowerCase();
+        const inner = m[2]
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+            .replace(/&nbsp;/g, ' ').replace(/&#?\w+;/g, '')
+            .replace(/\s+/g, ' ').trim();
+        if (!inner || inner.length < 20) continue;
+        blocks.push(tag === 'p' ? inner : `**${inner}**`);
+    }
+    return blocks.length ? blocks.join('\n\n') : null;
 }
 
 module.exports = async function handler(req, res) {
@@ -61,28 +91,28 @@ module.exports = async function handler(req, res) {
         return res.status(400).json({ error: 'invalid code' });
     }
 
-    const path = REGION_PATHS[code];
-    if (!path) {
-        return res.status(404).json({ error: 'unknown region' });
-    }
+    res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=600');
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 
+    // Primair: DWD opendata tekstbestand (server-side, geen CORS)
     try {
-        const pageRes = await fetch(`${BASE}${path}`, {
-            headers: { 'Accept-Language': 'de', 'User-Agent': 'hardloopweer/1.0' }
-        });
-        if (!pageRes.ok) {
-            return res.status(pageRes.status).json({ error: 'DWD page unavailable' });
+        const text = await fetchTextFile(code);
+        if (text && text.trim().length > 100) {
+            // Strip DWD-bestandsheader (alles voor eerste lege regel na regel 4)
+            const lines = text.replace(/\r\n/g, '\n').split('\n');
+            const firstBlank = lines.findIndex((l, i) => i > 3 && l.trim() === '');
+            const body = (firstBlank > 0 ? lines.slice(firstBlank + 1) : lines).join('\n').trim();
+            return res.status(200).send(body);
         }
-        const html = await pageRes.text();
-        const text = extractText(html);
-        if (!text) {
-            return res.status(404).json({ error: 'no text found' });
-        }
+    } catch { /* val door */ }
 
-        res.setHeader('Cache-Control', 's-maxage=1800, stale-while-revalidate=600');
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        return res.status(200).send(text);
+    // Fallback: DWD warnlage-pagina scrapen
+    try {
+        const text = await scrapeWarnlage(code);
+        if (text) return res.status(200).send(text);
     } catch (e) {
         return res.status(500).json({ error: e.message });
     }
-}
+
+    return res.status(404).json({ error: 'DWD bericht niet gevonden' });
+};
