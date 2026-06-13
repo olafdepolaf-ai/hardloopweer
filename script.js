@@ -1259,15 +1259,22 @@ function updateUI(data) {
         buienradarSection.classList.toggle('hidden', !isInNetherlands());
         if (isInNetherlands()) requestAnimationFrame(scaleBuienradar);
     }
+    // Only hide the report card when leaving NL. When in NL, fetchWeatherReport()
+    // controls visibility so the card never shows empty (with a lone "Lees meer").
     const weatherReportCard = document.getElementById('weather-report-card');
-    if (weatherReportCard) weatherReportCard.classList.toggle('hidden', !isInNetherlands());
+    if (weatherReportCard && !isInNetherlands()) weatherReportCard.classList.add('hidden');
 
     const germanySection = document.getElementById('germany-section');
     if (germanySection) germanySection.classList.toggle('hidden', !isInGermany());
 
     state._lastCurrent = current;
 
-    const hourIdx = locationHour();
+    // Find the array index for the current local hour by matching the timestamp.
+    // Do NOT assume hourly.time[0] is midnight today — the array may start elsewhere
+    // (e.g. MET Norway fallback), which would point dew point / UV at the wrong hour.
+    const nowKey = locationISO().substring(0, 13);
+    let hourIdx = data.hourly.time?.findIndex(t => t.substring(0, 13) === nowKey) ?? -1;
+    if (hourIdx === -1) hourIdx = locationHour();
     const dp = data.hourly.dew_point_2m[hourIdx];
     if (els.dewPoint) els.dewPoint.innerText = `${Math.round(dp)}°`;
     if (els.dewDot) els.dewDot.style.background = getDewpointColor(dp);
@@ -1565,17 +1572,28 @@ async function fetchBuienradarRain() {
 async function fetchWeatherReport() {
     const card = document.getElementById('weather-report-card');
     if (!card) return;
+
+    // Show a localized fallback instead of an empty card with a lone "Lees meer".
+    const showFallback = () => {
+        const summaryEl = document.getElementById('weather-report-summary');
+        if (summaryEl) summaryEl.textContent = t('weather_report_unavailable');
+        document.getElementById('weather-report-title')?.classList.add('hidden');
+        document.getElementById('weather-report-details')?.classList.remove('expanded');
+        document.getElementById('weather-report-toggle-open')?.classList.add('hidden');
+        card.classList.remove('hidden');
+    };
+
     try {
         const res = await fetch('https://data.buienradar.nl/2.0/feed/json');
-        if (!res.ok) return;
+        if (!res.ok) return showFallback();
         const json = await res.json();
         const forecast = json?.forecast;
-        if (!forecast) return;
+        if (!forecast) return showFallback();
 
         const wr = forecast.weatherreport;
         const shortterm = forecast.shortterm;
         const longterm = forecast.longterm;
-        if (!wr) return;
+        if (!wr) return showFallback();
 
         const decodeHtml = s => {
             const tmp = document.createElement('div');
@@ -1647,6 +1665,7 @@ async function fetchWeatherReport() {
 
         // Show Dutch immediately, then replace with translation if needed
         renderTexts({ title: rawTitle, summary: rawSummary, body: rawBody, shortterm: rawShort, longterm: rawLong });
+        document.getElementById('weather-report-toggle-open')?.classList.remove('hidden');
         card.classList.remove('hidden');
 
         if (state.lang !== 'nl') {
@@ -1656,6 +1675,7 @@ async function fetchWeatherReport() {
         }
     } catch (e) {
         console.warn('fetchWeatherReport mislukt:', e.message);
+        showFallback();
     }
 }
 
