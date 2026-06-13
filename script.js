@@ -1285,13 +1285,22 @@ function updateUI(data) {
     }
     if (window.lucide) lucide.createIcons();
 
-    const currentUV = data.hourly.uv_index?.[hourIdx] ?? 0;
+    // Advice is about sun protection during the run, so base it on today's PEAK UV
+    // (matches the "Max verwacht" in the UV widget), not the current hour. The UV
+    // widget may later override this with an authoritative source (e.g. RIVM in NL)
+    // via refreshUVAdvice(); keep the inputs around so it can re-run.
+    const todayDate = locationISO().substring(0, 10);
+    const todaysUV = (data.hourly.time || [])
+        .map((t, i) => t.startsWith(todayDate) ? (data.hourly.uv_index?.[i] ?? 0) : null)
+        .filter(v => v !== null);
+    const maxUVToday = todaysUV.length ? Math.max(...todaysUV) : (data.hourly.uv_index?.[hourIdx] ?? 0);
     state._lastHourly = data.hourly;
     state._lastMinutely15 = data.minutely_15;
     state._lastDaily = data.daily;
     const forecastDewpointStatus = dewpointRunStatus(maxFinite(collectVisibleDewpoints(data.hourly, data.minutely_15)));
+    state._adviceInputs = { current, dp, forecastDewpointStatus };
     updateComfortLevel(dp, current.temperature_2m, forecastDewpointStatus);
-    generateRecommendation(current, dp, currentUV, forecastDewpointStatus);
+    generateRecommendation(current, dp, maxUVToday, forecastDewpointStatus);
     renderChart(data.hourly, data.minutely_15);
     renderUVChart(data.hourly, data.daily);
     if (DEBUG) {
@@ -1431,6 +1440,14 @@ function buildClothingItems(temp, bft, uvIndex) {
     }
     items.push(t('clothing_add_id'));
     return items;
+}
+
+// Re-run the recommendation with an authoritative max UV once the UV widget resolves
+// its source (e.g. RIVM in NL), so the advice never contradicts the widget.
+function refreshUVAdvice(maxUV) {
+    const i = state._adviceInputs;
+    if (!i || !Number.isFinite(maxUV)) return;
+    generateRecommendation(i.current, i.dp, maxUV, i.forecastDewpointStatus);
 }
 
 function generateRecommendation(current, dewPoint, uvIndex = 0, forecastDewpointStatus = null) {
@@ -2403,6 +2420,7 @@ function _renderUVChart(hourly, daily) {
         // Max UV from RIVM expected
         const maxUVrivm = Math.max(...sliceExpected.filter(v => v !== null), 0);
         if (maxEl) maxEl.innerText = maxUVrivm.toFixed(1);
+        refreshUVAdvice(maxUVrivm); // keep clothing/UV advice in sync with RIVM
         if (DEBUG) { state._debug.uvSource = 'rivm'; state._debug.uvMax = maxUVrivm.toFixed(1); renderDebug(); }
 
         // Current UV: latest RIVM measured, else RIVM expected for current quarter
