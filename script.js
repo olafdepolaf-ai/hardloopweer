@@ -1285,10 +1285,10 @@ function updateUI(data) {
     }
     if (window.lucide) lucide.createIcons();
 
-    // Advice is about sun protection during the run, so base it on today's PEAK UV
-    // (matches the "Max verwacht" in the UV widget), not the current hour. The UV
-    // widget may later override this with an authoritative source (e.g. RIVM in NL)
-    // via refreshUVAdvice(); keep the inputs around so it can re-run.
+    // UV advice prefers the actual measured UV, but no measurement is available yet
+    // at this point, so start with today's expected PEAK as the fallback (matches the
+    // "Max verwacht" in the UV widget). In NL the widget loads RIVM measurements and
+    // calls refreshUVAdvice() with the measured value; keep the inputs around for that.
     const todayDate = locationISO().substring(0, 10);
     const todaysUV = (data.hourly.time || [])
         .map((t, i) => t.startsWith(todayDate) ? (data.hourly.uv_index?.[i] ?? 0) : null)
@@ -1536,6 +1536,7 @@ function generateRecommendation(current, dewPoint, uvIndex = 0, forecastDewpoint
             els.warnings.innerHTML = warningsHTML;
             els.warnings.classList.remove('hidden');
         } else {
+            els.warnings.innerHTML = ''; // clear stale text so a re-show can't flash old warnings
             els.warnings.classList.add('hidden');
         }
     }
@@ -2420,15 +2421,18 @@ function _renderUVChart(hourly, daily) {
         // Max UV from RIVM expected
         const maxUVrivm = Math.max(...sliceExpected.filter(v => v !== null), 0);
         if (maxEl) maxEl.innerText = maxUVrivm.toFixed(1);
-        refreshUVAdvice(maxUVrivm); // keep clothing/UV advice in sync with RIVM
         if (DEBUG) { state._debug.uvSource = 'rivm'; state._debug.uvMax = maxUVrivm.toFixed(1); renderDebug(); }
 
         // Current UV: latest RIVM measured, else RIVM expected for current quarter
         const curQuarter = currentHour * 4 + Math.floor(locationMinute() / 15);
-        let curVal = null;
-        for (let qIdx = curQuarter; qIdx >= 0 && curVal === null; qIdx--) {
-            if (rivmMeasured[qIdx] !== null) curVal = rivmMeasured[qIdx];
+        let measuredCur = null;
+        for (let qIdx = curQuarter; qIdx >= 0 && measuredCur === null; qIdx--) {
+            if (rivmMeasured[qIdx] !== null) measuredCur = rivmMeasured[qIdx];
         }
+        // Advice prefers the actual measured UV; if there's no measurement yet
+        // (e.g. early morning), fall back to today's expected peak.
+        refreshUVAdvice(measuredCur != null ? measuredCur : maxUVrivm);
+        let curVal = measuredCur;
         if (curVal === null) curVal = rivmExpected[curQuarter];
         if (curVal !== null && currentEl) {
             currentEl.innerText = curVal.toFixed(1);
