@@ -1504,6 +1504,25 @@ i[data-lucide] {
 .dwd-report-body {
     font-size: 0.88rem;
     line-height: 1.6;
+    white-space: normal; /* override pre-wrap: blocks already carry their own structure */
+}
+
+.dwd-report-body p {
+    margin: 0 0 0.7em;
+}
+
+.dwd-report-body p:last-child {
+    margin-bottom: 0;
+}
+
+.dwd-report-header {
+    display: block;
+    margin: 1em 0 0.3em;
+    font-weight: 600;
+}
+
+.dwd-report-body > .dwd-report-header:first-child {
+    margin-top: 0;
 }
 
 .dwd-report-credit {

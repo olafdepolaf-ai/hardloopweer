@@ -1266,6 +1266,10 @@ function updateUI(data) {
 
     const germanySection = document.getElementById('germany-section');
     if (germanySection) germanySection.classList.toggle('hidden', !isInGermany());
+    // DWD report sits with the NL report (under the hero); fetchWeatherReportDE()
+    // shows it when in Germany, so here we only hide it when leaving Germany.
+    const dwdReportCard = document.getElementById('dwd-report-card');
+    if (dwdReportCard && !isInGermany()) dwdReportCard.classList.add('hidden');
 
     state._lastCurrent = current;
 
@@ -1285,22 +1289,24 @@ function updateUI(data) {
     }
     if (window.lucide) lucide.createIcons();
 
-    // UV advice prefers the actual measured UV, but no measurement is available yet
-    // at this point, so start with today's expected PEAK as the fallback (matches the
-    // "Max verwacht" in the UV widget). In NL the widget loads RIVM measurements and
-    // calls refreshUVAdvice() with the measured value; keep the inputs around for that.
+    // UV advice mirrors the value the Zonkracht-widget shows: the CURRENT UV
+    // (measured where possible). Open-Meteo's current-hour value is used here; in NL
+    // the widget later overrides it with the RIVM measurement via refreshUVAdvice().
+    // Fall back to today's expected peak only if there's no current value at all.
     const todayDate = locationISO().substring(0, 10);
     const todaysUV = (data.hourly.time || [])
         .map((t, i) => t.startsWith(todayDate) ? (data.hourly.uv_index?.[i] ?? 0) : null)
         .filter(v => v !== null);
-    const maxUVToday = todaysUV.length ? Math.max(...todaysUV) : (data.hourly.uv_index?.[hourIdx] ?? 0);
+    const maxUVToday = todaysUV.length ? Math.max(...todaysUV) : 0;
+    const currentHourUV = data.hourly.uv_index?.[hourIdx];
+    const adviceUV = Number.isFinite(currentHourUV) ? currentHourUV : maxUVToday;
     state._lastHourly = data.hourly;
     state._lastMinutely15 = data.minutely_15;
     state._lastDaily = data.daily;
     const forecastDewpointStatus = dewpointRunStatus(maxFinite(collectVisibleDewpoints(data.hourly, data.minutely_15)));
     state._adviceInputs = { current, dp, forecastDewpointStatus };
     updateComfortLevel(dp, current.temperature_2m, forecastDewpointStatus);
-    generateRecommendation(current, dp, maxUVToday, forecastDewpointStatus);
+    generateRecommendation(current, dp, adviceUV, forecastDewpointStatus);
     renderChart(data.hourly, data.minutely_15);
     renderUVChart(data.hourly, data.daily);
     if (DEBUG) {
@@ -2429,11 +2435,11 @@ function _renderUVChart(hourly, daily) {
         for (let qIdx = curQuarter; qIdx >= 0 && measuredCur === null; qIdx--) {
             if (rivmMeasured[qIdx] !== null) measuredCur = rivmMeasured[qIdx];
         }
-        // Advice prefers the actual measured UV; if there's no measurement yet
-        // (e.g. early morning), fall back to today's expected peak.
-        refreshUVAdvice(measuredCur != null ? measuredCur : maxUVrivm);
         let curVal = measuredCur;
         if (curVal === null) curVal = rivmExpected[curQuarter];
+        // Advice mirrors the widget's current value (measured, else expected for now),
+        // falling back to today's expected peak only if neither is available.
+        refreshUVAdvice(curVal != null ? curVal : maxUVrivm);
         if (curVal !== null && currentEl) {
             currentEl.innerText = curVal.toFixed(1);
             currentEl.title = t('rivm_measured');
@@ -2704,45 +2710,69 @@ async function fetchWeatherReportDE() {
     }
 }
 
-function _dwdTextToHtml(text) {
-    return text.split('\n\n').map(block => {
-        const b = block.trim();
-        if (!b) return '';
-        // Plak afgebroken woorden aan elkaar en vervang harde regelafbrekingen door spaties
-        const joined = b.replace(/-\n/g, '').replace(/\n/g, ' ');
-        if (joined.startsWith('**') && joined.endsWith('**')) {
-            return `<strong>${escHtml(joined.slice(2, -2))}</strong>`;
+// Parse a DWD text report into clean blocks. The source wraps lines hard at ~60
+// chars (using CR/CRLF) and separates paragraphs with blank lines; short lines that
+// end with a colon are section headers (e.g. "GEWITTER:"). We join the soft wraps so
+// sentences flow, instead of preserving the raw line breaks.
+function _dwdParseBlocks(text) {
+    const lines = text.replace(/\r\n?/g, '\n').split('\n');
+    const blocks = [];
+    let buf = [];
+    const flush = () => {
+        if (buf.length) { blocks.push({ type: 'p', text: buf.join(' ').replace(/\s+/g, ' ').trim() }); buf = []; }
+    };
+    for (const raw of lines) {
+        let l = raw.trim();
+        if (!l) { flush(); continue; }
+        // Scraped headers arrive as **...**; opendata headers are short colon-terminated lines.
+        const md = l.match(/^\*\*(.+?)\*\*$/);
+        if (md) { flush(); blocks.push({ type: 'h', text: md[1].trim() }); continue; }
+        if (l.length <= 45 && /:$/.test(l) && !/[.!?]/.test(l) && /^[A-ZÄÖÜ]/.test(l)) {
+            flush(); blocks.push({ type: 'h', text: l.replace(/:+$/, '') }); continue;
         }
-        return `<p>${escHtml(joined)}</p>`;
-    }).join('');
+        buf.push(l);
+    }
+    flush();
+    return blocks;
+}
+
+function _dwdBlocksToHtml(blocks) {
+    return blocks.map(b => b.type === 'h'
+        ? `<strong class="dwd-report-header">${escHtml(b.text)}</strong>`
+        : `<p>${escHtml(b.text)}</p>`
+    ).join('');
+}
+
+async function _translateText(q, lang) {
+    // MyMemory caps each request at ~500 chars; callers pass single blocks.
+    const res = await fetch(
+        `https://api.mymemory.translated.net/get?q=${encodeURIComponent(q.substring(0, 500))}&langpair=de|${lang}&de=olaflemmers@gmail.com`
+    );
+    const json = await res.json();
+    const tr = json?.responseData?.translatedText;
+    return (tr && tr.length > 2) ? tr : null;
 }
 
 async function _renderDWDReport(text, bodyEl, card) {
-    const displayText = text.trim();
-    bodyEl.innerHTML = _dwdTextToHtml(displayText);
+    const blocks = _dwdParseBlocks(text.trim());
+    bodyEl.innerHTML = _dwdBlocksToHtml(blocks);
     card.classList.remove('hidden');
     document.getElementById('dwd-report-details')?.classList.add('expanded');
     document.getElementById('dwd-report-toggle-open')?.classList.add('hidden');
 
-    if (state.lang !== 'de') {
-        try {
-            const plainText = displayText
-                .replace(/\*\*[^*]+\*\*/g, '')
-                .split('\n\n')
-                .map(b => b.trim().replace(/-\n/g, '').replace(/\n/g, ' ').trim())
-                .filter(Boolean)
-                .join(' ')
-                .trim()
-                .substring(0, 900);
-            const res = await fetch(
-                `https://api.mymemory.translated.net/get?q=${encodeURIComponent(plainText)}&langpair=de|nl&de=olaflemmers@gmail.com`
-            );
-            const json = await res.json();
-            const translated = json?.responseData?.translatedText;
-            if (translated && translated.length > 50) {
-                bodyEl.innerHTML = `<p>${escHtml(translated)}</p>`;
+    if (state.lang !== 'de' && blocks.length) {
+        // Translate per block (sequentially, to stay within MyMemory rate limits) so
+        // paragraph/header structure survives and each block keeps flowing text.
+        const translated = [];
+        for (const b of blocks) {
+            try {
+                const tr = await _translateText(b.text, state.lang);
+                translated.push(tr ? { type: b.type, text: tr } : b);
+            } catch {
+                translated.push(b); // keep German for this block on failure
             }
-        } catch { /* toon Duits als fallback */ }
+        }
+        bodyEl.innerHTML = _dwdBlocksToHtml(translated);
     }
 }
 
