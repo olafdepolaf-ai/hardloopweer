@@ -2660,16 +2660,25 @@ async function fetchWeatherReportDE() {
         return;
     }
 
+    // Localized fallback so the card never shows up empty.
+    const showFallback = () => {
+        bodyEl.textContent = t('weather_report_unavailable');
+        document.getElementById('dwd-report-details')?.classList.add('expanded');
+        document.getElementById('dwd-report-toggle-open')?.classList.add('hidden');
+        card.classList.remove('hidden');
+    };
+
     try {
         const proxyRes = await fetch(`/api/dwd?code=${code}`);
-        if (!proxyRes.ok) return;
+        if (!proxyRes.ok) return showFallback();
         const text = await proxyRes.text();
-        if (!text) return;
+        if (!text) return showFallback();
         storageSet(cacheKey, text);
         storageSet(cacheTsKey, String(Date.now()));
         await _renderDWDReport(text, bodyEl, card);
     } catch (e) {
         console.warn('DWD weerbericht mislukt:', e.message);
+        showFallback();
     }
 }
 
