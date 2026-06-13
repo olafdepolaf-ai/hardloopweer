@@ -1587,12 +1587,15 @@ async function fetchWeatherReport() {
         const res = await fetch('https://data.buienradar.nl/2.0/feed/json');
         if (!res.ok) return showFallback();
         const json = await res.json();
-        const forecast = json?.forecast;
+        // Buienradar's feed uses PascalCase keys (Forecast.WeatherReport, ...).
+        // Keep lowercase fallbacks in case the casing ever changes back.
+        const pick = (obj, ...keys) => { for (const k of keys) if (obj?.[k] != null) return obj[k]; return undefined; };
+        const forecast = pick(json, 'Forecast', 'forecast');
         if (!forecast) return showFallback();
 
-        const wr = forecast.weatherreport;
-        const shortterm = forecast.shortterm;
-        const longterm = forecast.longterm;
+        const wr = pick(forecast, 'WeatherReport', 'weatherreport');
+        const shortterm = pick(forecast, 'ShortTermForecast', 'shortterm');
+        const longterm = pick(forecast, 'LongTerm', 'longterm');
         if (!wr) return showFallback();
 
         const decodeHtml = s => {
@@ -1606,6 +1609,7 @@ async function fetchWeatherReport() {
             if (!iso) return '';
             const [datePart, timePart] = iso.split('T');
             const [y, m, d] = datePart.split('-').map(Number);
+            if (!y || y < 2000) return ''; // feed sometimes returns a bogus 0001-01-01 date
             const time = timePart ? timePart.substring(0, 5) : '';
             const todayAtLoc = new Date(Date.now() + state.utcOffsetSeconds * 1000);
             const todayY = todayAtLoc.getUTCFullYear();
@@ -1629,20 +1633,22 @@ async function fetchWeatherReport() {
         };
 
         // Extract raw Dutch texts
-        const rawTitle    = wr.title || '';
-        const rawSummary  = decodeHtml(wr.summary || '');
+        const rawTitle    = pick(wr, 'Title', 'title') || '';
+        const rawSummary  = decodeHtml(pick(wr, 'Summary', 'summary') || '');
         const stripPrefix = (text, prefix) => {
             const t = text.trim(), p = prefix.trim();
             if (!p || !t.toLowerCase().startsWith(p.toLowerCase())) return t;
             return t.slice(p.length).replace(/^[\s.:\-–]+/, '').trim();
         };
-        const rawBodyFull = decodeHtml(wr.text || '');
+        const rawBodyFull = decodeHtml(pick(wr, 'Text', 'text') || '');
         const rawBody     = stripPrefix(stripPrefix(rawBodyFull, rawTitle), rawSummary);
-        const rawShort    = shortterm?.forecast || '';
-        const rawLong     = longterm?.forecast || '';
-        const timeStr     = formatPublishedTime(wr.published || '');
-        const shortRange  = shortterm?.startdate && shortterm?.enddate ? `${formatDateRange(shortterm.startdate, shortterm.enddate)}: ` : '';
-        const longRange   = longterm?.startdate && longterm?.enddate   ? `${formatDateRange(longterm.startdate, longterm.enddate)}: `   : '';
+        const rawShort    = pick(shortterm, 'Forecast', 'forecast') || '';
+        const rawLong     = pick(longterm, 'Forecast', 'forecast') || '';
+        const timeStr     = formatPublishedTime(pick(wr, 'Published', 'published') || '');
+        const shortStart  = pick(shortterm, 'StartDate', 'startdate'), shortEnd = pick(shortterm, 'EndDate', 'enddate');
+        const longStart   = pick(longterm, 'StartDate', 'startdate'),  longEnd  = pick(longterm, 'EndDate', 'enddate');
+        const shortRange  = shortStart && shortEnd ? `${formatDateRange(shortStart, shortEnd)}: ` : '';
+        const longRange   = longStart && longEnd   ? `${formatDateRange(longStart, longEnd)}: `   : '';
 
         const renderTexts = (f) => {
             const summaryEl = document.getElementById('weather-report-summary');
